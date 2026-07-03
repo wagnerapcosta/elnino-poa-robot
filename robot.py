@@ -39,10 +39,10 @@ SOURCES = [
         "layer": "strategic",
     },
     {
-        "name": "INMET Portal",
+       "name": "INMET Portal",
         "url": "https://portal.inmet.gov.br/",
         "type": "html",
-        "layer": "tactical",
+        "layer": "strategic",
     },
     {
         "name": "INPE Gov",
@@ -54,7 +54,7 @@ SOURCES = [
         "name": "CEMADEN Gov",
         "url": "https://www.gov.br/cemaden/pt-br",
         "type": "html",
-        "layer": "tactical",
+        "layer": "strategic",
     },
     {
         "name": "Defesa Civil RS",
@@ -90,18 +90,12 @@ TACTICAL_KEYWORDS = {
         "rajadas",
         "instabilidade",
         "perigo potencial",
-        "risco de alagamento",
     ],
     "orange": [
         "vendaval",
         "granizo",
-        "cheia",
-        "inundação",
-        "alagamento",
         "temporal severo",
-        "risco hidrológico",
         "alerta laranja",
-        "perigo",
     ],
     "red": [
         "grande perigo",
@@ -111,7 +105,6 @@ TACTICAL_KEYWORDS = {
         "emergência",
         "evacuação",
         "bloqueio",
-        "risco muito alto",
     ],
 }
 
