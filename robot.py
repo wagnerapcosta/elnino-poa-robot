@@ -420,7 +420,7 @@ def actions_by_level(level: str, reliability: str) -> list[str]:
 
     if level == "laranja":
         return [
-            "Realizar alinhamento preventivo no mesmo dia com SMS, Operações, APOC e Manutenção.",
+            "Manter monitoramento. Sem readiness requerido neste momento.",
             "Checar drenagem, pontos sensíveis, energia, geradores, FOD pós-temporal, SCI e equipes de resposta.",
             "Preparar briefing para Diretoria se houver piora de tendência ou persistência dos alertas.",
             "Definir responsável por nova verificação em até 24 horas.",
