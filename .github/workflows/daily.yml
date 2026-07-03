@@ -1,10 +1,13 @@
-name: Radar El Nino POA - Daily Tactical
+name: Radar El Nino POA - Tactical Daily
 
 on:
   schedule:
     # 09:30 UTC = 06:30 Brasilia
     - cron: "30 9 * * *"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   run-daily-radar:
@@ -29,10 +32,18 @@ jobs:
       - name: Rodar radar diario
         run: python robot.py
 
-      - name: Salvar relatorios e graficos
+      - name: Salvar relatorios e graficos como artifact
         uses: actions/upload-artifact@v4
         with:
           name: radar-diario-poa
           path: |
             reports/
             data/
+
+      - name: Persistir historico no repositorio
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add data/history.csv
+          git commit -m "Atualiza historico radar diario" || echo "Sem alteracoes para commit"
+          git push
