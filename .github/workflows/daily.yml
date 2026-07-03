@@ -1,4 +1,4 @@
-name: Radar El Nino POA - Daily
+name: Radar El Nino POA - Daily Tactical
 
 on:
   schedule:
@@ -29,10 +29,10 @@ jobs:
       - name: Rodar radar diario
         run: python robot.py
 
-      - name: Salvar relatorios como artifact
+      - name: Salvar relatorios e graficos
         uses: actions/upload-artifact@v4
         with:
-          name: radar-diario
+          name: radar-diario-poa
           path: |
             reports/
             data/
