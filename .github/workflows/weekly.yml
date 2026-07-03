@@ -1,4 +1,4 @@
-name: Radar El Nino POA - Weekly
+name: Radar El Nino POA - Weekly Executive
 
 on:
   schedule:
@@ -29,10 +29,10 @@ jobs:
       - name: Rodar radar semanal
         run: python robot.py
 
-      - name: Salvar relatorios como artifact
+      - name: Salvar relatorios e graficos
         uses: actions/upload-artifact@v4
         with:
-          name: radar-semanal
+          name: radar-semanal-poa
           path: |
             reports/
             data/
