@@ -1,0 +1,38 @@
+name: Radar El Nino POA - Weekly
+
+on:
+  schedule:
+    # Segunda-feira 10:00 UTC = 07:00 Brasilia
+    - cron: "0 10 * * 1"
+  workflow_dispatch:
+
+jobs:
+  run-weekly-radar:
+    runs-on: ubuntu-latest
+
+    env:
+      RUN_MODE: weekly
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Rodar radar semanal
+        run: python robot.py
+
+      - name: Salvar relatorios como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-semanal
+          path: |
+            reports/
+            data/
