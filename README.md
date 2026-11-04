@@ -1,24 +1,25 @@
-# Radar El Niño POA — revisão 1.3
+# Radar El Niño POA — v1.4
 
-Robô de apoio ao monitoramento de SBPA. Produz relatórios e notificações ntfy; este repositório não contém uma interface web. Não confundir com o HTML local Radar Chuva SBPA v1.4.
+Robô pessoal de apoio ao monitoramento de SBPA, com relatórios diário/semanal e alerta ntfy. Não é o HTML local Radar Chuva SBPA v1.4. Uso exclusivamente pessoal confirmado em 04/11/2026; reavaliar licenças antes de eventual uso empresarial.
 
-## Alerta de chuva
+## Alerta principal e checagem oficial
 
-- Limiar solicitado: **20 mm ou mais** (`>=20`); exatamente 20 mm dispara.
-- Soma 12 valores horários da previsão Open-Meteo no ponto de SBPA. Os horários da API indicam o fim da hora anterior.
-- Janela de 12 horas alinhada ao início da hora em curso. Exemplo: execução às 18:17 usa 18:00–06:00 e inclui a previsão integral da hora 18:00–19:00. A resolução horária não permite isolar com precisão os 17 minutos transcorridos. Horários reais da janela constam do alerta. Não procura o máximo de qualquer janela nos sete dias.
-- Dados ausentes, inválidos, fora de cobertura, unidade incorreta ou coordenadas incompatíveis geram indisponibilidade, nunca “sem gatilho”. A previsão é consultada novamente em cada execução; horário de coleta não comprova horário de inicialização do modelo.
-- Relatórios diário/semanal passam a incluir o alerta e o histórico recebe total, estado e janela. Semáforo tático mínimo amarelo; a notificação específica horária tem prioridade alta, sem representar nível oficial de alerta meteorológico.
-- Novo fluxo `rain-alert.yml`: a cada hora, minuto 17 UTC (mesma frequência em BRT). Executa apenas a previsão e só notifica quando o gatilho estiver ativo. Pode repetir em horas consecutivas; não há deduplicação persistente. Fluxos diário/semanal podem notificar o mesmo evento. GitHub Actions pode atrasar, falhar ou ter agendamentos desabilitados; não fornece garantia de tempo real.
-- É necessário `NTFY_TOPIC` já utilizado pelos fluxos existentes. Nenhum segredo precisa ser colocado no código. Ausência do tópico em um alerta ativo faz o novo fluxo falhar explicitamente. A aceitação HTTP do ntfy não comprova recebimento no aparelho.
+- **Open-Meteo ≥20 mm em 12h:** exatamente 20 mm dispara. São somados 12 intervalos horários, respeitando timestamps de fim da hora precedente. A janela começa no início da hora em curso, cuja previsão integral é incluída. Horários BRT explícitos; não há interpolação de minutos nem procura de qualquer máximo nos sete dias.
+- **CPTEC/INPE:** extração real da série JSON Multimodelo de Porto Alegre (ponto1276, cerca de7,2km de SBPA). O portal apresenta `prec` em mm/h. Como a borda temporal do intervalo não foi confirmada, o robô integra passos de1h nas duas hipóteses (timestamp como início ou fim) e mostra ambos os totais. Concordância/divergência é **indicativa**, não validação de acurácia. Se as hipóteses cruzam o limiar, a comparação é inconclusiva.
+- **INMET:** extração JSON da previsão por turnos e dos avisos. Avisos filtrados pelo código municipal4314902, encerramento e sobreposição com as próximas12h; vigência `inicio/fim` interpretada em BRT. São avisos para o município, não prova de20mm/12h em SBPA. Previsão qualitativa não é convertida em mm. Emissão do produto não informada permanece explícita.
+- **POA Clima/Prefeitura:** extração JSON da previsão diária do painel municipal, com emissão e totais em mm. Comparação com os mesmos dias civis do Open-Meteo, mostrando diferenças. Total diário não é dividido para inferir12h.
 
-## Auditoria das fontes
+O alerta principal nunca é cancelado, reduzido ou sujeito a votação entre fontes. Se CPTEC indicar ≥20mm nas duas hipóteses enquanto Open-Meteo estiver abaixo/indisponível, é enviada **ATENÇÃO de checagem CPTEC**, separada do alerta principal. Falta de dados oficiais não equivale a zero ou concordância. Os modelos podem compartilhar insumos; não se presume independência estatística.
 
-Ver [FONTES.md](FONTES.md), verificação em 04/11/2026. A alteração não contrata serviços nem provisiona credenciais. Confirmar licença Open-Meteo adequada ao uso empresarial antes da ativação. Concluir integração oficial brasileira é pendência explícita.
+## Execução
 
-## Execução e validação
+A rotina horária, no minuto17 UTC, consulta as quatro rotas oficiais em paralelo além do Open-Meteo. Também executa após alterações relevantes na branch principal. Pode haver atraso no GitHub Actions. Alertas/atenções ativos podem repetir em horas consecutivas e coincidir com notificações diárias/semanais.
 
-Python 3.11+ e dependências em `requirements.txt`.
+`RUN_MODE=rain_alert` executa a rotina curta; `daily` e `weekly` geram relatórios completos. O segredo `NTFY_TOPIC` existente é usado sem expor seu valor. Sua ausência com alerta/atenção ativo causa falha explícita. Confirmação HTTP não comprova recebimento no aparelho.
+
+Cada execução salva relatório e snapshot JSON de resultados normalizados (valores, origem, coleta, emissão, status, limites e comparação) em `reports/<modo>/`. O Actions guarda esses arquivos como artifact. O histórico diário/semanal também registra situação da comparação e valores CPTEC. Snapshots não constituem banco permanente nem validação retrospectiva contra chuva observada.
+
+Python3.11+:
 
 ```text
 pip install -r requirements.txt
@@ -26,11 +27,12 @@ python -m unittest discover -s tests -v
 python robot.py
 ```
 
-`RUN_MODE=rain_alert` seleciona a rotina curta; `daily` e `weekly` preservam os relatórios. Executar `robot.py` com tópico configurado pode enviar notificações. Os testes usam simulações e interceptam as notificações.
+Executar o robô com tópico configurado pode enviar notificações. Os testes interceptam os envios. Chaves/API pagas não foram provisionadas; nenhuma contratação.
 
-Dados: [Open-Meteo](https://open-meteo.com/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Modelo numérico em célula de grade não é medição por radar, chuva observada no aeroporto ou previsão hidrológica da bacia do Guaíba. O desempenho local ainda precisa de comparação retrospectiva com observações e meteorologista.
-A rotina de chuva também executa após alterações de código/testes na branch principal, permitindo verificar a implantação. Confirmado uso exclusivamente pessoal pelo usuário em 04/11/2026; eventual uso empresarial exige reavaliação da licença.
+## Fontes e limites
 
-## Fontes de consulta adicionadas — v1.3.1
+Oficiais: [CPTEC/INPE](https://www.cptec.inpe.br/), [Mapas INMET](https://mapas.inmet.gov.br/), [POA Clima](https://prefeitura.poa.br/poaclima/). [MetSul](https://metsul.com/) permanece consulta editorial complementar. CPC/NOAA e IRI oferecem contexto ENOS; homepages não geram cores por palavras-chave. AviationWeather continua complementar; REDEMET ainda não integrada.
 
-Oficiais: [CPTEC/INPE](https://www.cptec.inpe.br/), [Mapas INMET](https://mapas.inmet.gov.br/) e [POA Clima/Prefeitura](https://prefeitura.poa.br/poaclima/). Complementar: [MetSul](https://metsul.com/). Os relatórios diário/semanal mostram links, natureza, acesso à página e limites. A coleta HTML não integra as camadas dos mapas, painéis incorporados ou séries dinâmicas; essas fontes não alteram automaticamente o gatilho ≥20 mm/12h, que permanece baseado no Open-Meteo.
+As rotas públicas usadas pelos portais podem mudar sem aviso. Rodada CPTEC acima de36h e emissão POA Clima acima de48h são rejeitadas; são limites internos, não requisitos regulatórios. Falhas não silenciam o alerta principal disponível. A comparação é entre previsões, sem ingestão de séries observadas nem validação estatística de desempenho. Não é radar de precipitação observada, prognóstico hidrológico do Guaíba, certificação de readiness ou aprovação operacional.
+
+Origem dos dados, contratos e critérios em [FONTES.md](FONTES.md). Dados primários Open-Meteo sob [CC BY4.0](https://creativecommons.org/licenses/by/4.0/), com atribuição [Open-Meteo](https://open-meteo.com/). Atribuição da série oficial: **CPTEC/INPE**.
