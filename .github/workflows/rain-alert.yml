@@ -6,6 +6,7 @@ on:
     paths:
       - robot.py
       - rain_alert.py
+      - official_data.py
       - tests/**
       - .github/workflows/rain-alert.yml
   schedule:

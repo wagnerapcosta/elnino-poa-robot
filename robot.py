@@ -1,9 +1,11 @@
 import os
 import re
+import json
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt
 from rain_alert import rain_alert, alert_text
+from official_data import collect_official_data, compare_sources, official_summary, official_report
 
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -15,7 +17,7 @@ from pathlib import Path
 # VERSÃO
 # ============================================================
 
-ROBOT_VERSION = "1.3.1"
+ROBOT_VERSION = "1.4"
 
 
 # ============================================================
@@ -40,7 +42,7 @@ SOURCES = [
         "layer": "consultation",
         "source_type": "oficial",
         "regional_scope": False,
-        "consultation_note": "Previsão, nowcasting e clima; selecionar produto e localidade. Dados dinâmicos não integrados.",
+        "consultation_note": "Série horária JSON Multimodelo integrada; comparação experimental de 12h com sensibilidade ao alinhamento horário.",
     },
     {
         "name": "Mapas INMET",
@@ -48,7 +50,7 @@ SOURCES = [
         "layer": "consultation",
         "source_type": "oficial",
         "regional_scope": False,
-        "consultation_note": "Estações, avisos e camadas de previsão; conferir produto, horário e área. Camadas não extraídas do HTML.",
+        "consultation_note": "Previsão por turnos e avisos JSON integrados, filtrados por município e vigência. Não mede acumulado de 12h.",
     },
     {
         "name": "POA Clima — Prefeitura de Porto Alegre",
@@ -56,7 +58,7 @@ SOURCES = [
         "layer": "consultation",
         "source_type": "oficial",
         "regional_scope": True,
-        "consultation_note": "Monitoramento municipal em painel incorporado; medições do painel não extraídas do HTML.",
+        "consultation_note": "Previsão diária JSON municipal integrada e comparada com os mesmos dias do Open-Meteo; sem desagregar em 12h.",
     },
     {
         "name": "MetSul Meteorologia",
@@ -680,6 +682,8 @@ def build_mobile_summary(
     lines.append(f"Contexto ENOS: {strategic_level.upper()}")
     lines.append(f"Confiabilidade: {reliability.upper()}")
     lines.append(alert_text(forecast["rain_12h"]))
+    if forecast.get("official_comparison"):
+        lines.append(official_summary(forecast["official_data"], forecast["official_comparison"]))
     lines.append("")
     lines.append(f"Máx. chuva dia civil: {forecast_value(forecast, 'p24_max_mm')} mm")
     lines.append(f"Máx. chuva 3 dias civis: {forecast_value(forecast, 'p72_max_mm')} mm")
@@ -765,7 +769,7 @@ def build_full_report(
 
     lines.append("## 6. Fontes web monitoradas")
     lines.append("")
-    lines.append("Oficiais de consulta: CPTEC/INPE, Mapas INMET e POA Clima. Complementar: MetSul. Estado ok indica acesso ao HTML, não integração das medições, mapas ou previsões dinâmicas. O alerta ≥20 mm/12h continua calculado exclusivamente com Open-Meteo.")
+    lines.append("Oficiais: CPTEC/INPE, Mapas INMET e POA Clima. Complementar: MetSul. A tabela abaixo indica somente acesso ao HTML; a extração estruturada e a comparação constam na seção de checagem cruzada. O alerta principal ≥20 mm/12h permanece baseado no Open-Meteo; atenção CPTEC é emitida separadamente.")
     lines.append("")
     lines.append("| Fonte | Natureza | Camada | Acesso à página | Nível | Uso e limites |")
     lines.append("|---|---|---|---|---|---|")
@@ -785,8 +789,10 @@ def build_full_report(
 
     failed_sources = reliability_info.get("failed_sources", [])
     critical_failures = reliability_info.get("critical_failures", [])
+    if reliability_info.get("official_failures"):
+        lines.append("- Checagem oficial incompleta: " + ", ".join(reliability_info["official_failures"]) + ".")
 
-    if failed_sources or critical_failures:
+    if failed_sources or critical_failures or reliability_info.get("official_failures"):
         if failed_sources:
             lines.append(f"- Fontes web com erro: {', '.join(failed_sources)}")
         if critical_failures:
@@ -823,6 +829,8 @@ def build_full_report(
     )
     lines.append("")
 
+    if forecast.get("official_comparison"):
+        lines.extend(["", official_report(forecast["official_data"], forecast["official_comparison"])])
     return "\n".join(lines)
 
 
@@ -943,21 +951,38 @@ def main():
     ensure_dirs()
 
     mode = os.getenv("RUN_MODE", "daily")
+    reference_time = now_brt()
 
     print("Coletando previsão Open-Meteo...")
     open_meteo = collect_open_meteo()
-    forecast_analysis = classify_forecast(open_meteo.get("json", {}))
+    forecast_analysis = classify_forecast(open_meteo.get("json", {}), now=reference_time)
+    print("Extraindo dados estruturados CPTEC, INMET e POA Clima...")
+    official = collect_official_data(now=reference_time)
+    for product in official.values():
+        if product.get("status") != "ok":
+            print(f"::warning::Fonte oficial {product['source']}: {product['status']}. Conferir relatório de checagem.")
+    comparison = compare_sources(forecast_analysis["rain_12h"], official, open_meteo.get("json", {}))
+    forecast_analysis.update(official_data=official, official_comparison=comparison)
+    snapshot_dir = Path("reports") / mode
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    (snapshot_dir / reference_time.strftime("checagem_oficial_%Y%m%d_%H%M%S.json")).write_text(
+        json.dumps(dict(collected_at=reference_time.isoformat(), version=ROBOT_VERSION,
+                        open_meteo=forecast_analysis["rain_12h"], official=official, comparison=comparison),
+                   ensure_ascii=False, indent=2), encoding="utf-8")
 
     if mode == "rain_alert":
         alert = forecast_analysis["rain_12h"]
-        message = alert_text(alert)
-        save_report(message + "\nFonte: Open-Meteo https://open-meteo.com/ (CC BY 4.0).", mode)
-        if alert["status"] != "ok":
-            raise RuntimeError("Monitoramento chuva 12h indisponível: " + str(alert.get("error")))
-        if alert["triggered"]:
-            delivered = notify_ntfy("Radar POA - ALERTA chuva >=20 mm/12h", message, "laranja")
+        message = alert_text(alert) + "\n" + official_summary(official, comparison)
+        save_report(message + "\nFonte principal: Open-Meteo https://open-meteo.com/ (CC BY 4.0).\n\n" + official_report(official, comparison), mode)
+        attention = comparison["cptec_attention"]
+        if alert["triggered"] is True or attention:
+            title = ("Radar POA - ALERTA chuva >=20 mm/12h" if alert["triggered"] is True
+                     else "Radar POA - ATENCAO checagem CPTEC")
+            delivered = notify_ntfy(title, message, "laranja" if alert["triggered"] is True else "amarelo")
             if delivered is False:
                 raise RuntimeError("Alerta calculado, mas NTFY_TOPIC não configurado")
+        if alert["status"] != "ok":
+            raise RuntimeError("Monitoramento chuva 12h indisponível: " + str(alert.get("error")))
         print(message)
         return
 
@@ -973,6 +998,9 @@ def main():
         web_results.append(result)
 
     reliability_info = determine_collection_reliability(web_results, open_meteo, aviation, forecast_analysis)
+    reliability_info["official_failures"] = [v["source"] for v in official.values() if v.get("status") != "ok"]
+    if reliability_info["official_failures"] and reliability_info["reliability"] == "confiavel":
+        reliability_info["reliability"] = "parcial"
 
     tactical_levels = [forecast_analysis["level"]]
     tactical_levels += [
@@ -994,6 +1022,9 @@ def main():
         tactical_level = "amarelo"
 
     tactical_drivers = build_tactical_drivers(forecast_analysis, web_results)
+    if comparison["cptec_attention"]:
+        tactical_level = highest_level([tactical_level, "amarelo"])
+        tactical_drivers.insert(0, "Atenção CPTEC: sinal quantitativo exige conferência; não substitui o alerta principal Open-Meteo.")
     strategic_drivers = build_strategic_drivers(web_results)
 
     actions = actions_by_level(
@@ -1051,6 +1082,10 @@ def main():
         "rain_12h_triggered": forecast_analysis["rain_12h"]["triggered"],
         "rain_12h_start": forecast_analysis["rain_12h"]["start"],
         "rain_12h_end": forecast_analysis["rain_12h"]["end"],
+        "official_comparison": comparison["state"],
+        "cptec_12h_alignment_start_mm": official.get("cptec", {}).get("alignment_start_mm"),
+        "cptec_12h_alignment_end_mm": official.get("cptec", {}).get("alignment_end_mm"),
+        "official_source_statuses": json.dumps({k:v.get("status") for k,v in official.items()}, ensure_ascii=False),
         "p72_max_mm": forecast_analysis.get("p72_max_mm"),
         "gust_max_kmh": forecast_analysis.get("gust_max_kmh"),
         "report_path": report_path,
