@@ -1,4 +1,4 @@
-# Fontes e contratos de integração — v1.4 — 04/11/2026
+# Fontes e contratos de integração — v1.5 — 04/11/2026
 
 Conclusão: as três fontes oficiais solicitadas agora fornecem dados estruturados ao robô. Isso é checagem cruzada de previsões, não demonstração de acurácia do Open-Meteo nem validação estatística do limiar. Não há série de chuva observada integrada nesta versão. Escopo exclusivamente pessoal confirmado pelo usuário; não extrapolar para uso empresarial.
 
@@ -44,3 +44,14 @@ São contratos observados do frontend, não promessa de API estável ou SLA. Nã
 - DefesaCivilRS: https://defesacivil.rs.gov.br/inicial — referência; acesso direto anterior falhou apesar de abrir na web. Não tratada como integração concluída.
 
 Ainda necessários para validação de desempenho: arquivo de previsões emitidas, série observada com localização/qualidade/continuidade e cálculo retrospectivo de vieses, erros e acertos/falsos alertas por horizonte. O sistema atual guarda snapshots normalizados nos artifacts, mas não executa essa análise nem produz aceite operacional. Entrega no aparelho permanece distinta da aceitação HTTP do ntfy.
+
+
+## Defesa Civil Municipal — extração v1.5
+
+Fonte oficial: https://prefeitura.poa.br/poaclima/ e descrição municipal https://prefeitura.poa.br/defesa-civil/poaclima . A Prefeitura identifica a Defesa Civil Municipal como gestora, descreve as17regiões e os níveis atenção/amarelo, risco alto/laranja, muito alto/vermelho e extremo/roxo.
+
+Rota pública observada no frontend do painel: https://api.helpertecnologia.com.br/defesa-civil/bff/climate/alert/public/poadc/grouped-by-region . Contrato: lista de regiões com `order`, `name` e `alert` opcional. O frontend trata ausência/null de `alert` como sem alerta publicado naquela região. Objetos presentes expõem `criticality`, `start_date`, `end_date`, `alert_types[].name` e `alert_description`; `id` é opcional para rastreio. Descrição HTML é convertida em texto, sem executar conteúdo.
+
+Critérios: números de região1–17 únicos, nomes presentes, vigência coerente, fim posterior à consulta. Alertas futuros publicados são preservados e identificados como futuros; expirados ou `criticality=noRisk` não são notificados. Nível desconhecido ou registro inválido é rejeitado e consulta fica parcial, assim como falta de alguma região. Resposta vazia não é prova de ausência de alertas. Timestamp sem fuso usa BRT com premissa explícita; emissão não informada não é inferida da coleta. Objetos idênticos são agrupados entre regiões. A ordem de prioridade do aviso consolidado preserva o nível mais grave.
+
+Verificação real em04/11/2026:HTTP200 e17regiões sem objeto `alert` associado. Isso confirma extração do estado consultado, não ausência geral de risco meteorológico. Nenhum objeto positivo vigente estava disponível para validação real; casos positivos, níveis, vigência, agrupamento, fuso, HTML e limites de mensagem foram verificados com fixtures baseadas no frontend, sem enviar alertas fictícios. A classificação oficial regional é distinta da matriz do robô e do gatilho quantitativo20mm/12h.

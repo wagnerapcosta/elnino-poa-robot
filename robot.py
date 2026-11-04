@@ -6,6 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from rain_alert import rain_alert, alert_text
 from official_data import collect_official_data, compare_sources, official_summary, official_report
+from operational_notices import primary_failure_notice, civil_defense_notice, send_additional_notices
 
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -17,7 +18,7 @@ from pathlib import Path
 # VERSÃO
 # ============================================================
 
-ROBOT_VERSION = "1.4"
+ROBOT_VERSION = "1.5"
 
 
 # ============================================================
@@ -414,17 +415,30 @@ def classify_keywords(text: str, source: dict) -> dict:
 
 
 def classify_forecast(open_meteo_json: dict, now=None) -> dict:
+    if not isinstance(open_meteo_json, dict):
+        open_meteo_json = {}
     short_rain = rain_alert(open_meteo_json, now=now)
-    daily = open_meteo_json.get("daily", {})
-    dates = daily.get("time", [])
-    precipitation = daily.get("precipitation_sum", []) or []
-    gusts = daily.get("wind_gusts_10m_max", []) or []
+    daily = open_meteo_json.get("daily")
+    daily = daily if isinstance(daily, dict) else {}
+    daily_units = open_meteo_json.get("daily_units")
+    daily_units = daily_units if isinstance(daily_units, dict) else {}
+    dates = daily.get("time")
+    dates = dates if isinstance(dates, list) else []
+    precipitation = daily.get("precipitation_sum")
+    precipitation = precipitation if isinstance(precipitation, list) else []
+    gusts = daily.get("wind_gusts_10m_max")
+    gusts = gusts if isinstance(gusts, list) else []
 
     # Null/negative values are not zero rain. Invalid series is unavailable.
     import math
-    valid_daily = (bool(dates) and len(dates) == len(precipitation) == len(gusts)
-                   and open_meteo_json.get("daily_units", {}).get("precipitation_sum") == "mm"
-                   and open_meteo_json.get("daily_units", {}).get("wind_gusts_10m_max") == "km/h"
+    try:
+        parsed_dates = [datetime.strptime(day, "%Y-%m-%d") for day in dates]
+        valid_dates = len(parsed_dates) >= 3 and all((b-a).days == 1 for a,b in zip(parsed_dates, parsed_dates[1:]))
+    except (ValueError, TypeError):
+        valid_dates = False
+    valid_daily = (valid_dates and len(dates) == len(precipitation) == len(gusts)
+                   and daily_units.get("precipitation_sum") == "mm"
+                   and daily_units.get("wind_gusts_10m_max") == "km/h"
                    and all(isinstance(v, (int, float)) and not isinstance(v, bool)
                            and math.isfinite(v) and v >= 0 for v in precipitation + gusts))
     if not valid_daily:
@@ -955,7 +969,12 @@ def main():
 
     print("Coletando previsão Open-Meteo...")
     open_meteo = collect_open_meteo()
-    forecast_analysis = classify_forecast(open_meteo.get("json", {}), now=reference_time)
+    try:
+        forecast_analysis = classify_forecast(open_meteo.get("json", {}), now=reference_time)
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError):
+        # An HTTP success with a malformed JSON structure is also a collection failure.
+        open_meteo.update(status="error", error="Formato da previsão principal inválido", json={})
+        forecast_analysis = classify_forecast({}, now=reference_time)
     print("Extraindo dados estruturados CPTEC, INMET e POA Clima...")
     official = collect_official_data(now=reference_time)
     for product in official.values():
@@ -969,6 +988,14 @@ def main():
         json.dumps(dict(collected_at=reference_time.isoformat(), version=ROBOT_VERSION,
                         open_meteo=forecast_analysis["rain_12h"], official=official, comparison=comparison),
                    ensure_ascii=False, indent=2), encoding="utf-8")
+    additional = [primary_failure_notice(open_meteo, forecast_analysis, reference_time),
+                  civil_defense_notice(official.get("poa_alerts", {}), reference_time)]
+    outcomes = send_additional_notices(additional, notify_ntfy)
+    (snapshot_dir / reference_time.strftime("notificacoes_operacionais_%Y%m%d_%H%M%S.json")).write_text(
+        json.dumps(outcomes, ensure_ascii=False, indent=2), encoding="utf-8")
+    notification_errors = any(not row["accepted"] for row in outcomes)
+    for outcome in outcomes:
+        print(f"Notificação operacional: {outcome['title']} — aceitação HTTP: {outcome['accepted']}")
 
     if mode == "rain_alert":
         alert = forecast_analysis["rain_12h"]
@@ -983,6 +1010,8 @@ def main():
                 raise RuntimeError("Alerta calculado, mas NTFY_TOPIC não configurado")
         if alert["status"] != "ok":
             raise RuntimeError("Monitoramento chuva 12h indisponível: " + str(alert.get("error")))
+        if notification_errors:
+            raise RuntimeError("Falha no envio de notificação operacional; consultar registro nos artifacts")
         print(message)
         return
 
@@ -1096,6 +1125,8 @@ def main():
     print(full_report)
     print(f"\nRelatório salvo em: {report_path}")
     print(f"Gráfico salvo em: {chart_path}")
+    if notification_errors:
+        raise RuntimeError("Falha no envio de notificação operacional; consultar registro nos artifacts")
 
 
 if __name__ == "__main__":

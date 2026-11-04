@@ -140,14 +140,14 @@ class OfficialTests(unittest.TestCase):
         for side_effect in [requests.Timeout('tempo esgotado'), ValueError('JSON inválido')]:
             with patch.object(o.requests,'get',side_effect=side_effect):
                 r=o.collect_official_data(NOW)
-            self.assertEqual(len(r),4)
+            self.assertEqual(len(r),5)
             self.assertTrue(all(p['status']=='unavailable' and p['error'] for p in r.values()))
 
     def test_rain_mode_does_not_cancel_primary_or_hide_cptec(self):
         import robot
         for total,cp,expected_title in [(20,0,'ALERTA'),(0,2,'ATENCAO'),(0,0,None)]:
             f=robot.classify_forecast(payload(total),NOW)
-            with patch.object(robot,'collect_official_data',return_value={'cptec':parsed_cptec(cp)}), patch.object(robot,'Path'), patch.object(robot,'ensure_dirs'), patch.object(robot,'save_report'), patch.object(robot,'classify_forecast',return_value=f), patch.object(robot,'collect_open_meteo',return_value={'json':payload(total)}), patch.object(robot,'notify_ntfy',return_value=True) as notify, patch.dict('os.environ',{'RUN_MODE':'rain_alert'}):
+            with patch.object(robot,'collect_official_data',return_value={'cptec':parsed_cptec(cp)}), patch.object(robot,'Path'), patch.object(robot,'ensure_dirs'), patch.object(robot,'save_report'), patch.object(robot,'classify_forecast',return_value=f), patch.object(robot,'collect_open_meteo',return_value={'status':'ok','json':payload(total)}), patch.object(robot,'notify_ntfy',return_value=True) as notify, patch.dict('os.environ',{'RUN_MODE':'rain_alert'}):
                 robot.main()
                 if expected_title:self.assertIn(expected_title,notify.call_args.args[0])
                 else:notify.assert_not_called()

@@ -8,14 +8,24 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from math import isfinite, radians, sin, cos, asin, sqrt
 import unicodedata
+import hashlib
+import json
 import requests
+from bs4 import BeautifulSoup
 from rain_alert import TZ
 
 CPTEC_URL = 'https://s1.cptec.inpe.br/grafico/Modelos/Multimodel/pag_web/horario/1276.json'
 INMET_URL = 'https://apiprevmet3.inmet.gov.br/previsao/4314902'
 INMET_WARNINGS_URL = 'https://apiprevmet3.inmet.gov.br/avisos/ativos'
 POA_URL = 'https://api.helpertecnologia.com.br/defesa-civil/bff/climate/previsions/poadc'
+POA_ALERTS_URL = 'https://api.helpertecnologia.com.br/defesa-civil/bff/climate/alert/public/poadc/grouped-by-region'
 IBGE = '4314902'
+POA_LEVELS = {
+    'attention_notice': ('Aviso de atenção', 'AVISO DE ATENCAO'),
+    'high_risk': ('Alerta de risco alto', 'RISCO ALTO'),
+    'very_high_risk': ('Alerta de risco muito alto', 'RISCO MUITO ALTO'),
+    'extreme_risk': ('Alerta de risco extremo', 'RISCO EXTREMO'),
+}
 
 
 def number(value):
@@ -162,11 +172,75 @@ def parse_inmet_warnings(data, now):
                 scope='município IBGE 4314902 e sobreposição às próximas 12h; não prova 20 mm/12h em SBPA')
 
 
+def parse_poa_alerts(data, now):
+    if not isinstance(data, list) or not data:
+        raise ValueError('POA Clima sem lista de regiões válida')
+    seen, grouped, skipped = set(), {}, 0
+    for region in data:
+        order = region.get('order')
+        if type(order) is not int or order not in range(1, 18) or order in seen:
+            raise ValueError('Regiões POA Clima duplicadas ou com identificador inválido')
+        name = region.get('name')
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError('Região POA Clima sem nome')
+        seen.add(order)
+        alert = region.get('alert')
+        # This is the public frontend's explicit no-alert representation.
+        if alert is None:
+            continue
+        try:
+            if not isinstance(alert, dict):
+                raise ValueError('Alerta municipal inválido')
+            criticality = alert.get('criticality')
+            if criticality == 'noRisk':
+                continue
+            if criticality not in POA_LEVELS:
+                raise ValueError('Nível municipal desconhecido')
+            assumed = False
+            dates = []
+            for field in ('start_date', 'end_date'):
+                dt = datetime.fromisoformat(alert[field].replace('Z', '+00:00'))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=TZ)
+                    assumed = True
+                dates.append(dt)
+            begin, end = dates
+            if end <= begin:
+                raise ValueError('Vigência municipal inválida')
+            if end <= now:
+                continue
+            types = alert.get('alert_types') or []
+            if not isinstance(types, list) or any(not isinstance(t, dict) or not isinstance(t.get('name'), str) for t in types):
+                raise ValueError('Tipos de alerta municipal inválidos')
+            description = alert.get('alert_description') or 'Descrição não informada pela fonte.'
+            if not isinstance(description, str):
+                raise ValueError('Descrição municipal inválida')
+            soup = BeautifulSoup(description, 'lxml')
+            for tag in soup(['script', 'style']):
+                tag.decompose()
+            text = ' '.join(soup.get_text(' ').split())[:8000]
+            label, title_label = POA_LEVELS[criticality]
+            item = dict(criticality=criticality, label=label, title_label=title_label,
+                        start=begin.isoformat(), end=end.isoformat(), active_now=begin <= now < end,
+                        timezone_assumed=assumed, types=sorted({t['name'].strip()[:120] for t in types}),
+                        description=text, source_id=str(alert.get('id', 'não informado')))
+            fingerprint = hashlib.sha256(json.dumps(item, sort_keys=True, ensure_ascii=False).encode('utf-8')).hexdigest()
+            if fingerprint not in grouped:
+                grouped[fingerprint] = dict(item, regions=[])
+            grouped[fingerprint]['regions'].append(dict(order=order, name=name.strip()[:100]))
+        except (ValueError, TypeError, KeyError, AttributeError):
+            skipped += 1
+    skipped += len(set(range(1, 18)) - seen)
+    return dict(alerts=list(grouped.values()), region_count=len(seen), skipped_records=skipped,
+                issued_at=None, scope='Avisos/alertas municipais por região; não confirma impacto em SBPA nem acumulado de 12h')
+
+
 PRODUCTS = {
     'cptec': ('CPTEC/INPE Multimodelo', CPTEC_URL, parse_cptec),
     'inmet_forecast': ('INMET previsão Porto Alegre', INMET_URL, parse_inmet_forecast),
     'inmet_warnings': ('INMET avisos', INMET_WARNINGS_URL, parse_inmet_warnings),
     'poa': ('POA Clima / Prefeitura', POA_URL, parse_poa),
+    'poa_alerts': ('Defesa Civil POA / POA Clima', POA_ALERTS_URL, parse_poa_alerts),
 }
 
 
@@ -176,14 +250,14 @@ def collect_official_data(now=None):
         name, url, parser = PRODUCTS[key]
         result = dict(source=name, url=url, fetched_at=now.isoformat(), status='unavailable', error=None)
         try:
-            response = requests.get(url, timeout=25, headers={'User-Agent': 'POA-Radar/1.4'})
+            response = requests.get(url, timeout=25, headers={'User-Agent': 'POA-Radar/1.5'})
             response.raise_for_status()
             result.update(parser(response.json(), now))
             result['status'] = 'partial' if result.get('skipped_records') else 'ok'
         except (requests.RequestException, ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError) as exc:
             result['error'] = str(exc)
         return key, result
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=5) as pool:
         return dict(pool.map(fetch, PRODUCTS))
 
 
@@ -201,10 +275,15 @@ def compare_sources(primary, official, open_meteo_json=None):
         state = 'divergência no sinal de 20 mm/12h'
     attention = c_ok and c_signal is True and (not p_ok or same_window and primary.get('triggered') is False)
     daily_pairs = []
-    daily = (open_meteo_json or {}).get('daily') or {}
-    units = (open_meteo_json or {}).get('daily_units') or {}
-    dates, amounts = daily.get('time') or [], daily.get('precipitation_sum') or []
-    if units.get('precipitation_sum') == 'mm' and len(dates) == len(amounts):
+    forecast_payload = open_meteo_json if isinstance(open_meteo_json, dict) else {}
+    daily = forecast_payload.get('daily') or {}
+    daily = daily if isinstance(daily, dict) else {}
+    units = forecast_payload.get('daily_units') or {}
+    units = units if isinstance(units, dict) else {}
+    dates, amounts = daily.get('time'), daily.get('precipitation_sum')
+    dates = dates if isinstance(dates, list) else []
+    amounts = amounts if isinstance(amounts, list) else []
+    if units.get('precipitation_sum') == 'mm' and len(dates) == len(amounts) and all(isinstance(d, str) for d in dates):
         om_daily = dict(zip(dates, amounts))
         if official.get('poa', {}).get('status') == 'ok':
             for row in official['poa']['daily']:
@@ -237,6 +316,13 @@ def official_summary(official, comparison):
         lines.append('INMET avisos: indisponíveis; não interpretar como ausência de aviso.')
     if official.get('inmet_forecast', {}).get('status') != 'ok':
         lines.append('INMET previsão por turnos: indisponível.')
+    municipal = official.get('poa_alerts', {})
+    if municipal.get('status') in ('ok', 'partial'):
+        lines.append(f"Defesa Civil POA: {len(municipal['alerts'])} aviso(s)/alerta(s) agrupado(s), consulta de {municipal['region_count']}/17 regiões.")
+        if municipal.get('status') == 'partial':
+            lines.append('Consulta municipal parcial; registros/regiões não avaliados não significam ausência de alerta.')
+    else:
+        lines.append('Defesa Civil POA: alertas indisponíveis; não interpretar como ausência de alerta.')
     if comparison.get('daily_pairs'):
         r = comparison['daily_pairs'][0]
         lines.append(f"Dia {r['date']}: POA Clima {r['poa_mm']:.1f} mm; Open-Meteo {r['open_meteo_mm']:.1f} mm. Totais diários, não 12h.")
@@ -260,4 +346,9 @@ def official_report(official, comparison):
         lines.append(f"- Aviso INMET [{cell(row['description'])} — {cell(row['severity'])}]({row['url']}): {row['start']} a {row['end']}; ativo agora: {row['active_now']}.")
     for row in comparison.get('daily_pairs', []):
         lines.append(f"- Dia {row['date']}: POA Clima {row['poa_mm']:.1f} mm / Open-Meteo {row['open_meteo_mm']:.1f} mm; diferença {row['difference_mm']:+.1f} mm.")
+    for row in official.get('poa_alerts', {}).get('alerts', []):
+        regions = ', '.join(r['name'] for r in row['regions'])
+        lines.append(f"- Defesa Civil POA — {row['label']}; regiões: {cell(regions)}; vigência {row['start']} a {row['end']}; ativo agora: {row['active_now']}. Tipos: {cell(', '.join(row['types']))}. Descrição: {cell(row['description'])}")
+        if row.get('timezone_assumed'):
+            lines.append('  Fonte municipal sem fuso explícito; horários interpretados em BRT.')
     return '\n'.join(lines) + '\n'
