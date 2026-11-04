@@ -39,3 +39,14 @@ Confirmar licença/API de produção, manter verificação REDEMET/INMET/Defesa 
 Em 04/11/2026 às 15:07 BRT, Open-Meteo retornou série/unidades válidas e cálculo de 6,1 mm na janela 15:00–03:00, sem gatilho. AviationWeather retornou um METAR e um TAF; a validade temporal dessas mensagens não foi auditada. CPC, IRI, INMET, INPE e CEMADEN responderam à coleta HTML. A Defesa Civil abriu na consulta web, mas a consulta direta pelo robô terminou com conexão encerrada pelo servidor: integração não confirmada. Consulta válida não comprova precisão da previsão. Doze testes automatizados passaram; notificações interceptadas, sem envio real. Entrega ao aparelho e execução no GitHub Actions permanecem pendentes.
 
 Escopo de ativação confirmado pelo usuário em 04/11/2026: uso exclusivamente pessoal, sem aplicação empresarial. Nesse escopo, a restrição comercial da Free API não impede a ativação desta versão; reavaliar licença se o uso mudar. Nenhum gasto ou contratação autorizado.
+
+## Inclusão solicitada — v1.3.1 — 04/11/2026
+
+| Natureza | Fonte de consulta | Verificação e uso |
+|---|---|---|
+| Oficial | https://www.cptec.inpe.br/ | Portal CPTEC/INPE com previsão, nowcasting e clima. Confirmar produto, validade e localização; homepage não fornece por si só série validada de SBPA. |
+| Oficial | https://mapas.inmet.gov.br/ | Aplicação com estações, radar, previsão e avisos em camadas dinâmicas; HTML acessível não comprova extração dessas camadas. |
+| Oficial | https://prefeitura.poa.br/poaclima/ | Página municipal incorpora painel externo de clima.helpertecnologia.com.br. Consulta oficial municipal preservada; dados do painel não integrados nesta alteração. |
+| Complementar | https://metsul.com/ | Fonte meteorológica privada. Consultar análises datadas e aplicabilidade regional; não tratar como alerta oficial. A própria previsão automática da homepage declara limite de uso em situação de risco meteorológico. |
+
+Links consultados na web em 04/11/2026. Novas fontes participam da consulta HTML diária/semanal, com natureza e limitações nos relatórios. Não houve integração de APIs ou extração de medições/valores de mapas, iframes ou conteúdo restrito. Limiar inclusivo ≥20 mm/12h e rotina horária Open-Meteo preservados.

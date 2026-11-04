@@ -15,7 +15,7 @@ from pathlib import Path
 # VERSÃO
 # ============================================================
 
-ROBOT_VERSION = "1.3"
+ROBOT_VERSION = "1.3.1"
 
 
 # ============================================================
@@ -34,6 +34,38 @@ AIRPORT = {
 # - tactical: pode elevar risco diário se houver gatilho regionalizado
 # - strategic: entra como contexto ENOS/climático, mas não eleva readiness diário sozinho
 SOURCES = [
+    {
+        "name": "CPTEC/INPE",
+        "url": "https://www.cptec.inpe.br/",
+        "layer": "consultation",
+        "source_type": "oficial",
+        "regional_scope": False,
+        "consultation_note": "Previsão, nowcasting e clima; selecionar produto e localidade. Dados dinâmicos não integrados.",
+    },
+    {
+        "name": "Mapas INMET",
+        "url": "https://mapas.inmet.gov.br/",
+        "layer": "consultation",
+        "source_type": "oficial",
+        "regional_scope": False,
+        "consultation_note": "Estações, avisos e camadas de previsão; conferir produto, horário e área. Camadas não extraídas do HTML.",
+    },
+    {
+        "name": "POA Clima — Prefeitura de Porto Alegre",
+        "url": "https://prefeitura.poa.br/poaclima/",
+        "layer": "consultation",
+        "source_type": "oficial",
+        "regional_scope": True,
+        "consultation_note": "Monitoramento municipal em painel incorporado; medições do painel não extraídas do HTML.",
+    },
+    {
+        "name": "MetSul Meteorologia",
+        "url": "https://metsul.com/",
+        "layer": "consultation",
+        "source_type": "complementar",
+        "regional_scope": False,
+        "consultation_note": "Análise meteorológica privada complementar; conferir data e localidade. Não gera gatilho automático.",
+    },
     {
         "name": "NOAA CPC ENSO Diagnostic Discussion",
         "url": "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml",
@@ -231,6 +263,8 @@ def collect_html_source(source: dict) -> dict:
 
         return {
             "source": source["name"],
+            "source_type": source.get("source_type", "referência"),
+            "consultation_note": source.get("consultation_note", "Referência; boletim e abrangência exigem validação."),
             "url": source["url"],
             "layer": source["layer"],
             "regional_scope": source.get("regional_scope", False),
@@ -243,6 +277,8 @@ def collect_html_source(source: dict) -> dict:
     except Exception as exc:
         return {
             "source": source["name"],
+            "source_type": source.get("source_type", "referência"),
+            "consultation_note": source.get("consultation_note", "Referência; boletim e abrangência exigem validação."),
             "url": source["url"],
             "layer": source["layer"],
             "regional_scope": source.get("regional_scope", False),
@@ -729,15 +765,17 @@ def build_full_report(
 
     lines.append("## 6. Fontes web monitoradas")
     lines.append("")
-    lines.append("| Fonte | Camada | Regional | Coleta | Nível | Achados |")
+    lines.append("Oficiais de consulta: CPTEC/INPE, Mapas INMET e POA Clima. Complementar: MetSul. Estado ok indica acesso ao HTML, não integração das medições, mapas ou previsões dinâmicas. O alerta ≥20 mm/12h continua calculado exclusivamente com Open-Meteo.")
+    lines.append("")
+    lines.append("| Fonte | Natureza | Camada | Acesso à página | Nível | Uso e limites |")
     lines.append("|---|---|---|---|---|---|")
 
     for item in web_results:
         analysis = item.get("analysis", {})
         lines.append(
-            f"| {item.get('source')} | {item.get('layer')} | "
-            f"{analysis.get('regional_relevance', False)} | {item.get('status')} | "
-            f"{analysis.get('level', 'n/a')} | {format_hits(analysis.get('hits', {}))} |"
+            f"| [{item.get('source')}]({item.get('url')}) | {item.get('source_type', 'referência')} | {item.get('layer')} | "
+            f"{item.get('status')} | {analysis.get('level', 'n/a')} | "
+            f"{item.get('consultation_note', '')} |"
         )
 
     lines.append("")

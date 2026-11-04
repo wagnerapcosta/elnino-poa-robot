@@ -30,3 +30,7 @@ python robot.py
 
 Dados: [Open-Meteo](https://open-meteo.com/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Modelo numérico em célula de grade não é medição por radar, chuva observada no aeroporto ou previsão hidrológica da bacia do Guaíba. O desempenho local ainda precisa de comparação retrospectiva com observações e meteorologista.
 A rotina de chuva também executa após alterações de código/testes na branch principal, permitindo verificar a implantação. Confirmado uso exclusivamente pessoal pelo usuário em 04/11/2026; eventual uso empresarial exige reavaliação da licença.
+
+## Fontes de consulta adicionadas — v1.3.1
+
+Oficiais: [CPTEC/INPE](https://www.cptec.inpe.br/), [Mapas INMET](https://mapas.inmet.gov.br/) e [POA Clima/Prefeitura](https://prefeitura.poa.br/poaclima/). Complementar: [MetSul](https://metsul.com/). Os relatórios diário/semanal mostram links, natureza, acesso à página e limites. A coleta HTML não integra as camadas dos mapas, painéis incorporados ou séries dinâmicas; essas fontes não alteram automaticamente o gatilho ≥20 mm/12h, que permanece baseado no Open-Meteo.
