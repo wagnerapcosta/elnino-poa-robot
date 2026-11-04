@@ -9,6 +9,11 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: radar-poa-production
+  queue: max
+  cancel-in-progress: false
+
 jobs:
   run-weekly-radar:
     runs-on: ubuntu-latest
@@ -20,6 +25,9 @@ jobs:
     steps:
       - name: Baixar repositorio
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Configurar Python
         uses: actions/setup-python@v5
@@ -34,16 +42,21 @@ jobs:
 
       - name: Salvar relatorios e graficos como artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: radar-semanal-poa
           path: |
             reports/
             data/
 
-      - name: Persistir historico no repositorio
+      - name: Persistir memoria de notificacoes e historico
+        if: always()
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add data/history.csv
-          git commit -m "Atualiza historico radar semanal" || echo "Sem alteracoes para commit"
-          git push
+          if [ -f data/notification_state.json ]; then git add data/notification_state.json; fi
+          if [ -f data/history.csv ]; then git add data/history.csv; fi
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Atualiza memoria de notificacoes e historico"
+          git pull --rebase origin main
+          git push origin HEAD:main

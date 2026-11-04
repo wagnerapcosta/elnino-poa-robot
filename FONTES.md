@@ -1,4 +1,4 @@
-# Fontes e contratos de integração — v1.5 — 04/11/2026
+# Fontes e contratos de integração — v1.6 — 04/11/2026
 
 Conclusão: as três fontes oficiais solicitadas agora fornecem dados estruturados ao robô. Isso é checagem cruzada de previsões, não demonstração de acurácia do Open-Meteo nem validação estatística do limiar. Não há série de chuva observada integrada nesta versão. Escopo exclusivamente pessoal confirmado pelo usuário; não extrapolar para uso empresarial.
 
@@ -55,3 +55,12 @@ Rota pública observada no frontend do painel: https://api.helpertecnologia.com.
 Critérios: números de região1–17 únicos, nomes presentes, vigência coerente, fim posterior à consulta. Alertas futuros publicados são preservados e identificados como futuros; expirados ou `criticality=noRisk` não são notificados. Nível desconhecido ou registro inválido é rejeitado e consulta fica parcial, assim como falta de alguma região. Resposta vazia não é prova de ausência de alertas. Timestamp sem fuso usa BRT com premissa explícita; emissão não informada não é inferida da coleta. Objetos idênticos são agrupados entre regiões. A ordem de prioridade do aviso consolidado preserva o nível mais grave.
 
 Verificação real em04/11/2026:HTTP200 e17regiões sem objeto `alert` associado. Isso confirma extração do estado consultado, não ausência geral de risco meteorológico. Nenhum objeto positivo vigente estava disponível para validação real; casos positivos, níveis, vigência, agrupamento, fuso, HTML e limites de mensagem foram verificados com fixtures baseadas no frontend, sem enviar alertas fictícios. A classificação oficial regional é distinta da matriz do robô e do gatilho quantitativo20mm/12h.
+
+
+## Governança dos reenvios — v1.6
+
+A memória de notificações é mecanismo interno, não nova fonte meteorológica. Estado persistente em data/notification_state.json, compartilhado pelas três rotinas; referências de volume e rajada só mudam depois de aceitação pelo ntfy. Registro inicial do panorama geral vem da última linha do histórico, gravada após envio do resumo na versão anterior. Mensagens explícitas de teste não entram na memória de eventos reais.
+
+Critérios internos de mudança relevante: nível; tipo de falha principal; conteúdo/vigência/tipo/região dos avisos municipais; volume pelo menos5mm E25%; rajada pelo menos10km/h E20%. Hora de consulta/avanço normal da janela eIDs regenerados não são motivo de envio. Normalização da coleta requer status de transporte ok e validação horária/diária ok e só é avisada se uma falha foi observada antes.
+
+Base técnica de persistência: https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency — grupo compartilhado, fila max, cancel-in-progress false. Checkout com ref main para ler o estado mais recente quando o job começa; https://github.com/actions/checkout . Passo de persistência com if:always para não perder estado de falha/recuperação após RuntimeError do monitor. Dados persistidos não disparam o fluxo por si. Sem garantia de transação exatamente-uma-vez entre GitHub e ntfy; falha de publicação do estado é erro visível do job, não sucesso presumido.

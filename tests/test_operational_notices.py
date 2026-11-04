@@ -115,7 +115,7 @@ class OperationalTests(unittest.TestCase):
     def test_main_failure_sends_failure_and_municipal_before_error(self):
         import robot
         with patch.object(robot,'collect_official_data',return_value={'poa_alerts':municipal()}),patch.object(robot,'Path'),patch.object(robot,'ensure_dirs'),patch.object(robot,'save_report'),patch.object(robot,'collect_open_meteo',return_value={'status':'error','json':{}}),patch.object(robot,'notify_ntfy',return_value=True) as notify,patch.dict('os.environ',{'RUN_MODE':'rain_alert'}):
-            with self.assertRaisesRegex(RuntimeError,'indisponível'):robot.main()
+            with self.assertRaisesRegex(RuntimeError,'indisponível'):robot.main(notification_state=robot.NotificationState())
             self.assertEqual(notify.call_count,2)
             titles=[c.args[0] for c in notify.call_args_list]
             self.assertIn('FALHA',titles[0]);self.assertIn('DEFESA CIVIL',titles[1])
@@ -123,7 +123,7 @@ class OperationalTests(unittest.TestCase):
     def test_main_malformed_json_still_sends_failure(self):
         import robot
         with patch.object(robot,'collect_official_data',return_value={}),patch.object(robot,'Path'),patch.object(robot,'ensure_dirs'),patch.object(robot,'save_report'),patch.object(robot,'collect_open_meteo',return_value={'status':'ok','json':[]}),patch.object(robot,'notify_ntfy',return_value=True) as notify,patch.dict('os.environ',{'RUN_MODE':'rain_alert'}):
-            with self.assertRaisesRegex(RuntimeError,'indisponível'):robot.main()
+            with self.assertRaisesRegex(RuntimeError,'indisponível'):robot.main(notification_state=robot.NotificationState())
             self.assertIn('FALHA',notify.call_args.args[0])
 
     def test_daily_schema_failure_does_not_cancel_valid_12h_alert(self):
@@ -135,7 +135,7 @@ class OperationalTests(unittest.TestCase):
         p=payload(20);p['daily']['time']=[[],[],[]];variants.append(p)
         for p in variants:
             with patch.object(robot,'collect_official_data',return_value={}),patch.object(robot,'Path'),patch.object(robot,'ensure_dirs'),patch.object(robot,'save_report'),patch.object(robot,'now_brt',return_value=NOW),patch.object(robot,'collect_open_meteo',return_value={'status':'ok','json':p}),patch.object(robot,'notify_ntfy',return_value=True) as notify,patch.dict('os.environ',{'RUN_MODE':'rain_alert'}):
-                robot.main()
+                robot.main(notification_state=robot.NotificationState())
                 self.assertEqual(notify.call_count,2)
                 self.assertIn('FALHA',notify.call_args_list[0].args[0])
                 self.assertIn('12 horas permanece disponível',notify.call_args_list[0].args[1])
