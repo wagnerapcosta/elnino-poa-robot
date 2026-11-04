@@ -1,0 +1,21 @@
+{
+  "collection": {
+    "failed": false
+  },
+  "events": {
+    "general": {
+      "active": true,
+      "last_sent": "2026-11-04T14:24:49.433031-03:00",
+      "seeded_from_history": true,
+      "signature": {
+        "level": "laranja",
+        "metrics": {
+          "gust": 47.5,
+          "p24": 50.9,
+          "p72": 55.9
+        }
+      }
+    }
+  },
+  "schema": 1
+}
