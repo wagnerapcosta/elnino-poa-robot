@@ -36,3 +36,7 @@ Oficiais: [CPTEC/INPE](https://www.cptec.inpe.br/), [Mapas INMET](https://mapas.
 As rotas públicas usadas pelos portais podem mudar sem aviso. Rodada CPTEC acima de36h e emissão POA Clima acima de48h são rejeitadas; são limites internos, não requisitos regulatórios. Falhas não silenciam o alerta principal disponível. A comparação é entre previsões, sem ingestão de séries observadas nem validação estatística de desempenho. Não é radar de precipitação observada, prognóstico hidrológico do Guaíba, certificação de readiness ou aprovação operacional.
 
 Origem dos dados, contratos e critérios em [FONTES.md](FONTES.md). Dados primários Open-Meteo sob [CC BY4.0](https://creativecommons.org/licenses/by/4.0/), com atribuição [Open-Meteo](https://open-meteo.com/). Atribuição da série oficial: **CPTEC/INPE**.
+
+## Teste de notificação
+
+`notification_test.py` simula exatamente20mm em12h, verifica o gatilho inclusivo e envia uma única mensagem com título e corpo identificados como TESTE/DADOS SIMULADOS. Não consulta meteorologia nem grava ocorrência no histórico. O fluxo `notification-test.yml` pode ser executado manualmente no Actions; também roda quando seu próprio arquivo é alterado na main, para verificar a configuração do teste. Não possui agendamento periódico. Aceitação pelo ntfy não comprova recebimento no celular.
