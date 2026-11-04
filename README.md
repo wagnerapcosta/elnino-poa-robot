@@ -1,4 +1,4 @@
-# Radar El Niño POA — v1.4
+# Radar El Niño POA — v1.5
 
 Robô pessoal de apoio ao monitoramento de SBPA, com relatórios diário/semanal e alerta ntfy. Não é o HTML local Radar Chuva SBPA v1.4. Uso exclusivamente pessoal confirmado em 04/11/2026; reavaliar licenças antes de eventual uso empresarial.
 
@@ -13,7 +13,7 @@ O alerta principal nunca é cancelado, reduzido ou sujeito a votação entre fon
 
 ## Execução
 
-A rotina horária, no minuto17 UTC, consulta as quatro rotas oficiais em paralelo além do Open-Meteo. Também executa após alterações relevantes na branch principal. Pode haver atraso no GitHub Actions. Alertas/atenções ativos podem repetir em horas consecutivas e coincidir com notificações diárias/semanais.
+A rotina horária, no minuto17 UTC, consulta as cinco rotas oficiais em paralelo além do Open-Meteo. A quinta rota fornece os avisos/alertas regionais da Defesa Civil POA. Também executa após alterações relevantes na branch principal. Pode haver atraso no GitHub Actions. Alertas/atenções ativos podem repetir em horas consecutivas e coincidir com notificações diárias/semanais.
 
 `RUN_MODE=rain_alert` executa a rotina curta; `daily` e `weekly` geram relatórios completos. O segredo `NTFY_TOPIC` existente é usado sem expor seu valor. Sua ausência com alerta/atenção ativo causa falha explícita. Confirmação HTTP não comprova recebimento no aparelho.
 
@@ -40,3 +40,14 @@ Origem dos dados, contratos e critérios em [FONTES.md](FONTES.md). Dados primá
 ## Teste de notificação
 
 `notification_test.py` simula exatamente20mm em12h, verifica o gatilho inclusivo e envia uma única mensagem com título e corpo identificados como TESTE/DADOS SIMULADOS. Não consulta meteorologia nem grava ocorrência no histórico. O fluxo `notification-test.yml` pode ser executado manualmente no Actions; também roda quando seu próprio arquivo é alterado na main, para verificar a configuração do teste. Não possui agendamento periódico. Aceitação pelo ntfy não comprova recebimento no celular.
+
+
+## Avisos no celular — v1.5
+
+**Falha da previsão principal:** problemas de transporte, formato, valores ou cobertura da previsão Open-Meteo geram uma notificação própria, de prioridade alta: `Radar POA - FALHA na previsao principal`. O corpo destaca **DADOS INDISPONÍVEIS NÃO SIGNIFICAM AUSÊNCIA DE RISCO** e orienta consultar as fontes oficiais. Se apenas os dados diários falharem, o texto distingue essa falha da avaliação de12h disponível. No modo horário, falha de12h continua marcando o job como falha após tentar enviar os avisos; a falha não vira “sem risco”.
+
+**Defesa Civil POA:** a rota pública do painel municipal é consultada em cada execução. O robô envia uma notificação separada com nível oficial, regiões, vigência, tipos de evento e trecho da descrição publicada. Aviso de atenção usa prioridade normal; risco alto, alta; risco muito alto/extremo, urgente. A classificação extrema é preservada no texto, sem convertê-la em nível da matriz interna do robô. Alertas futuros publicados podem ser enviados com início futuro explícito; expirados/estado `noRisk` não geram aviso.
+
+A consulta cobre17regiões. Alertas idênticos em várias regiões são agrupados em um conteúdo; mensagens longas trazem trecho e link para a íntegra. O aviso consolidado prioriza os níveis mais graves. Cobertura incompleta ou registro inválido é consulta parcial; falha de fonte não equivale a nenhuma região alertada. Datas municipais sem fuso são interpretadas em BRT com a premissa explícita. O alerta por região não prova impacto em SBPA nem20mm/12h.
+
+Não há deduplicação persistente entre execuções: falhas e alertas municipais ainda ativos podem repetir a cada consulta, inclusive nos fluxos diário/semanal. As notificações são independentes: erro em um envio não impede tentar o outro. Resultados de aceitação do serviço ficam em `notificacoes_operacionais_*.json` nos artifacts, sem expor o tópico privado. A entrega física ao aparelho permanece distinta da aceitação HTTP.

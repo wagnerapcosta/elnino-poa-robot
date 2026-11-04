@@ -7,6 +7,7 @@ on:
       - robot.py
       - rain_alert.py
       - official_data.py
+      - operational_notices.py
       - tests/**
       - .github/workflows/rain-alert.yml
   schedule:
