@@ -85,22 +85,22 @@ class RainTests(unittest.TestCase):
     def test_rain_mode_notifications_mocked(self):
         import robot
         for total, sends in [(19.99, 0), (20, 1), (21, 1)]:
-            with patch.object(robot, "collect_official_data", return_value={}), patch.object(robot, "Path"), patch.dict("os.environ", {"RUN_MODE": "rain_alert"}), patch.object(robot, "ensure_dirs"), patch.object(robot, "save_report"), patch.object(robot, "collect_open_meteo", return_value={"status": "ok", "json": payload(total)}), patch.object(robot, "classify_forecast", return_value=robot.classify_forecast(payload(total), NOW)), patch.object(robot, "notify_ntfy") as notify:
-                robot.main()
+            with patch.object(robot, "collect_official_data", return_value={}), patch.object(robot, "Path"), patch.dict("os.environ", {"RUN_MODE": "rain_alert"}), patch.object(robot, "ensure_dirs"), patch.object(robot, "save_report"), patch.object(robot, "collect_open_meteo", return_value={"status": "ok", "json": payload(total)}), patch.object(robot, "classify_forecast", return_value=robot.classify_forecast(payload(total), NOW)), patch.object(robot, "notify_ntfy", return_value=True) as notify:
+                robot.main(notification_state=robot.NotificationState())
                 self.assertEqual(notify.call_count, sends)
 
     def test_missing_notification_configuration(self):
         import robot
         with patch.object(robot, "collect_official_data", return_value={}), patch.object(robot, "Path"), patch.dict("os.environ", {"RUN_MODE": "rain_alert"}), patch.object(robot, "ensure_dirs"), patch.object(robot, "save_report"), patch.object(robot, "collect_open_meteo", return_value={"status": "ok", "json": payload()}), patch.object(robot, "classify_forecast", return_value=robot.classify_forecast(payload(), NOW)), patch.object(robot, "notify_ntfy", return_value=False):
-            with self.assertRaisesRegex(RuntimeError, "NTFY_TOPIC"):
-                robot.main()
+            with self.assertRaisesRegex(RuntimeError, "Falha no envio"):
+                robot.main(notification_state=robot.NotificationState())
 
     def test_unavailable_sends_failure_notice_not_rain_alert(self):
         import robot
         f = robot.classify_forecast({}, NOW)
-        with patch.object(robot, "collect_official_data", return_value={}), patch.object(robot, "Path"), patch.dict("os.environ", {"RUN_MODE": "rain_alert"}), patch.object(robot, "ensure_dirs"), patch.object(robot, "save_report"), patch.object(robot, "collect_open_meteo", return_value={"status": "error", "json": {}}), patch.object(robot, "classify_forecast", return_value=f), patch.object(robot, "notify_ntfy") as notify:
+        with patch.object(robot, "collect_official_data", return_value={}), patch.object(robot, "Path"), patch.dict("os.environ", {"RUN_MODE": "rain_alert"}), patch.object(robot, "ensure_dirs"), patch.object(robot, "save_report"), patch.object(robot, "collect_open_meteo", return_value={"status": "error", "json": {}}), patch.object(robot, "classify_forecast", return_value=f), patch.object(robot, "notify_ntfy", return_value=True) as notify:
             with self.assertRaisesRegex(RuntimeError, "indisponível"):
-                robot.main()
+                robot.main(notification_state=robot.NotificationState())
             self.assertEqual(notify.call_count,1)
             self.assertIn("FALHA",notify.call_args.args[0])
             self.assertIn("NÃO SIGNIFICAM AUSÊNCIA DE RISCO",notify.call_args.args[1])

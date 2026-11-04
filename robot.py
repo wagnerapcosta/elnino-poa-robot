@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from rain_alert import rain_alert, alert_text
 from official_data import collect_official_data, compare_sources, official_summary, official_report
-from operational_notices import primary_failure_notice, civil_defense_notice, send_additional_notices
+from notification_state import NotificationState
 
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -18,7 +18,7 @@ from pathlib import Path
 # VERSÃO
 # ============================================================
 
-ROBOT_VERSION = "1.5"
+ROBOT_VERSION = "1.6"
 
 
 # ============================================================
@@ -461,7 +461,6 @@ def classify_forecast(open_meteo_json: dict, now=None) -> dict:
     if short_rain["status"] != "ok":
         reasons.append(alert_text(short_rain))
     elif short_rain["triggered"]:
-        level = "amarelo"
         reasons.append(alert_text(short_rain))
 
     if p24_max >= p["red_24h_mm"] or p72_max >= p["red_72h_mm"]:
@@ -484,8 +483,12 @@ def classify_forecast(open_meteo_json: dict, now=None) -> dict:
         level = "amarelo"
         reasons.append(f"Rajada prevista em nível amarelo: {gust_max:.1f} km/h.")
 
+    general_level = level
+    if short_rain["triggered"] is True:
+        level = highest_level([level, "amarelo"])
     return {
         "rain_12h": short_rain,
+        "general_level": general_level,
         "data_status": "ok" if valid_daily and short_rain["status"] == "ok" else "unavailable",
         "level": level,
         "dates": dates,
@@ -961,8 +964,10 @@ def save_report(report: str, mode: str) -> str:
 # MAIN
 # ============================================================
 
-def main():
+def main(notification_state=None):
     ensure_dirs()
+    state = notification_state if notification_state is not None else NotificationState(
+        Path("data/notification_state.json"), history_path=Path("data/history.csv"))
 
     mode = os.getenv("RUN_MODE", "daily")
     reference_time = now_brt()
@@ -988,26 +993,23 @@ def main():
         json.dumps(dict(collected_at=reference_time.isoformat(), version=ROBOT_VERSION,
                         open_meteo=forecast_analysis["rain_12h"], official=official, comparison=comparison),
                    ensure_ascii=False, indent=2), encoding="utf-8")
-    additional = [primary_failure_notice(open_meteo, forecast_analysis, reference_time),
-                  civil_defense_notice(official.get("poa_alerts", {}), reference_time)]
-    outcomes = send_additional_notices(additional, notify_ntfy)
+    outcomes = state.collection(open_meteo, forecast_analysis, reference_time, notify_ntfy)
+    outcomes += state.municipal(official.get("poa_alerts", {}), reference_time, notify_ntfy)
+    alert = forecast_analysis["rain_12h"]
+    attention = comparison["cptec_attention"]
+    message = alert_text(alert) + "\n" + official_summary(official, comparison)
+    rain_notice = dict(title="Radar POA - ALERTA chuva >=20 mm/12h" if alert["triggered"] is True
+                       else "Radar POA - ATENCAO checagem CPTEC", body=message,
+                       level="laranja" if alert["triggered"] is True else "amarelo")
+    outcomes += state.rain(forecast_analysis, official, comparison, rain_notice, reference_time, notify_ntfy)
     (snapshot_dir / reference_time.strftime("notificacoes_operacionais_%Y%m%d_%H%M%S.json")).write_text(
         json.dumps(outcomes, ensure_ascii=False, indent=2), encoding="utf-8")
-    notification_errors = any(not row["accepted"] for row in outcomes)
+    notification_errors = any(row["status"] == "failed" for row in outcomes)
     for outcome in outcomes:
-        print(f"Notificação operacional: {outcome['title']} — aceitação HTTP: {outcome['accepted']}")
+        print(f"Notificação: {outcome['title']} — estado: {outcome['status']}; aceitação HTTP: {outcome['accepted']}")
 
     if mode == "rain_alert":
-        alert = forecast_analysis["rain_12h"]
-        message = alert_text(alert) + "\n" + official_summary(official, comparison)
         save_report(message + "\nFonte principal: Open-Meteo https://open-meteo.com/ (CC BY 4.0).\n\n" + official_report(official, comparison), mode)
-        attention = comparison["cptec_attention"]
-        if alert["triggered"] is True or attention:
-            title = ("Radar POA - ALERTA chuva >=20 mm/12h" if alert["triggered"] is True
-                     else "Radar POA - ATENCAO checagem CPTEC")
-            delivered = notify_ntfy(title, message, "laranja" if alert["triggered"] is True else "amarelo")
-            if delivered is False:
-                raise RuntimeError("Alerta calculado, mas NTFY_TOPIC não configurado")
         if alert["status"] != "ok":
             raise RuntimeError("Monitoramento chuva 12h indisponível: " + str(alert.get("error")))
         if notification_errors:
@@ -1090,9 +1092,13 @@ def main():
         tactical_drivers=tactical_drivers,
     )
 
-    title = ("Radar POA - ALERTA chuva >=20 mm/12h" if forecast_analysis["rain_12h"]["triggered"]
-             else f"Radar El Nino POA - {tactical_level.upper()}")
-    notify_ntfy(title, mobile_summary, tactical_level)
+    general_notice = dict(title=f"Radar El Nino POA - {tactical_level.upper()}",
+                          body=mobile_summary, level=tactical_level)
+    general_outcomes = state.general(forecast_analysis, general_notice, reference_time, notify_ntfy)
+    outcomes += general_outcomes
+    notification_errors = notification_errors or any(row["status"] == "failed" for row in general_outcomes)
+    (snapshot_dir / reference_time.strftime("notificacoes_operacionais_%Y%m%d_%H%M%S.json")).write_text(
+        json.dumps(outcomes, ensure_ascii=False, indent=2), encoding="utf-8")
 
     save_history({
         "timestamp": now_brt().isoformat(),
