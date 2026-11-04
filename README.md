@@ -52,7 +52,7 @@ A consulta cobre17regiões. Alertas idênticos em várias regiões são agrupado
 
 Há memória persistente entre execuções e rotinas para evitar reenvios sem mudança relevante. Quando a previsão principal volta a passar nas verificações, é emitido um único aviso de coleta normalizada. As notificações são independentes: erro em um envio não impede tentar o outro. Resultados de aceitação do serviço ficam em `notificacoes_operacionais_*.json` nos artifacts, sem expor o tópico privado. A entrega física ao aparelho permanece distinta da aceitação HTTP.
 
-O fluxo de teste está configurado para `notification_test.py --operational`: envia dois cenários fictícios (falha principal e alerta municipal), ambos com TESTE/DADOS SIMULADOS no título/corpo, sem consulta meteorológica ou alteração do histórico. Sem a opção, o script preserva o teste anterior de20mm/12h. A identificação do teste municipal declara explicitamente que não foi emitido pela Defesa Civil e usa região fictícia.
+A opção `notification_test.py --operational` envia dois cenários fictícios (falha principal e alerta municipal), ambos com TESTE/DADOS SIMULADOS no título/corpo, sem consulta meteorológica ou alteração do histórico. Sem a opção, o script preserva o teste anterior de20mm/12h. A identificação do teste municipal declara explicitamente que não foi emitido pela Defesa Civil e usa região fictícia.
 
 
 ## Memória de eventos e recuperação — v1.6
@@ -71,3 +71,6 @@ Os mínimos de5mm/25% e10km/h/20% são critérios internos iniciais de comunica�
 Só a aceitação HTTP atualiza a referência de envio; falhas de entrega podem ser tentadas na próxima consulta. A recuperação também é tentada novamente se não for aceita. Os artifacts distinguem `sent`, `suppressed` e `failed`. Os testes explícitos no celular bypassam essa memória e não abrem falsos episódios de falha/recuperação.
 
 Persistência local é atômica; o estado é publicado no repositório ao final do job mesmo em falha da previsão. Estado corrompido não é zerado silenciosamente: a execução falha para correção. Interrupção entre aceitação ntfy e persistência no GitHub pode ocasionar reenvio residual; não há transação de entrega única entre os serviços. Recebimento no aparelho continua distinto da aceitação HTTP.
+
+
+O fluxo de teste agora seleciona `notification_test.py --dedup-recovery`: executa falha → mesma falha → recuperação com a máquina de estados real e arquivo temporário recarregado entre as três fases. São esperados exatamente dois envios: uma falha e uma normalização; a segunda falha é suprimida. Ambos são TESTE/DADOS SIMULADOS e não representam condição meteorológica real. A memória real de produção é conferida por hash antes/depois e não é alterada. O resultado fica no artifact `notification-dedup-test-*`. Não há nova tentativa automática de mensagem já aceita.

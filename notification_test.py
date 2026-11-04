@@ -4,6 +4,11 @@ from rain_alert import TZ, rain_alert
 from robot import notify_ntfy
 from operational_notices import primary_failure_notice, civil_defense_notice, send_additional_notices
 import argparse
+import json
+import hashlib
+import tempfile
+from pathlib import Path
+from notification_state import NotificationState
 
 
 def build_test(now=None):
@@ -62,10 +67,63 @@ def build_operational_tests(now=None):
     return [failure, civil]
 
 
+def run_dedup_recovery_test(notify=None, now=None):
+    notify = notify or notify_ntfy
+    now = now or datetime.now(TZ)
+    sent_titles, outcomes = [], []
+    production_path = Path('data/notification_state.json')
+    before_hash = hashlib.sha256(production_path.read_bytes()).hexdigest() if production_path.exists() else None
+    def test_send(title, body, level):
+        label = 'COLETA NORMALIZADA' if 'NORMALIZADA' in title else 'FALHA DA PREVISAO PRINCIPAL'
+        test_title = 'TESTE - DADOS SIMULADOS - ' + label
+        test_body = ('TESTE — DADOS SIMULADOS.\n'
+                     'Simulação de falha repetida e recuperação da previsão principal.\n'
+                     'NÃO representa falha ou recuperação real. Nenhuma ação operacional é necessária por causa deste teste.\n\n'
+                     + body + '\n\nFIM DO TESTE. Sequência simulada: falha → mesma falha → coleta normalizada. Confirme o recebimento no chat.')
+        accepted = notify(test_title, test_body, level)
+        if accepted is True:
+            sent_titles.append(test_title)
+        return accepted
+    # Reload the file before each phase, mirroring separate production runs.
+    # The temporary file never touches data/notification_state.json.
+    with tempfile.TemporaryDirectory(prefix='poa-notification-test-') as folder:
+        state_path = Path(folder) / 'isolated_state.json'
+        phases = [
+            ('falha', {'status': 'error'}, {'data_status': 'unavailable', 'rain_12h': {'status': 'unavailable'}}),
+            ('mesma falha', {'status': 'error'}, {'data_status': 'unavailable', 'rain_12h': {'status': 'unavailable'}}),
+            ('recuperacao', {'status': 'ok'}, {'data_status': 'ok', 'rain_12h': {'status': 'ok'}}),
+        ]
+        for index, (phase, collection, forecast) in enumerate(phases, 1):
+            state = NotificationState(state_path)
+            row = state.collection(collection, forecast, now + timedelta(minutes=index-1), test_send)[0]
+            outcomes.append(dict(phase=phase, status=row['status'], accepted=row['accepted']))
+            print(f"TESTE passo {index} ({phase}): {row['status']}; aceitação HTTP: {row['accepted']}")
+            if row['status'] == 'failed':
+                raise RuntimeError('Um envio de teste não foi confirmado; não repetir os que já foram aceitos')
+    expected = ['sent', 'suppressed', 'sent']
+    if [r['status'] for r in outcomes] != expected or len(sent_titles) != 2:
+        raise RuntimeError('Teste não confirmou exatamente um aviso de falha e um de recuperação')
+    after_hash = hashlib.sha256(production_path.read_bytes()).hexdigest() if production_path.exists() else None
+    if before_hash != after_hash:
+        raise RuntimeError('O teste alterou a memória de produção indevidamente')
+    result = dict(test=True, phases=outcomes, accepted_count=len(sent_titles), titles=sent_titles,
+                  state_reloaded_between_phases=True, production_state_untouched=True,
+                  production_state_before_sha256=before_hash, production_state_after_sha256=after_hash)
+    Path('reports').mkdir(exist_ok=True)
+    Path('reports/notification_dedup_test.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    print('TESTE CONCLUÍDO: 1 falha aceita; repetição suprimida; 1 recuperação aceita. Confirmação no celular pendente.')
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--operational', action='store_true', help='Enviar dois testes: falha principal e Defesa Civil POA')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--operational', action='store_true', help='Enviar dois testes: falha principal e Defesa Civil POA')
+    group.add_argument('--dedup-recovery', action='store_true', help='Testar falha, repetição suprimida e recuperação')
     args = parser.parse_args()
+    if args.dedup_recovery:
+        run_dedup_recovery_test()
+        return
     if args.operational:
         outcomes = send_additional_notices(build_operational_tests(), notify_ntfy)
         for row in outcomes:
