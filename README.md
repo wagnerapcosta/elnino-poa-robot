@@ -29,3 +29,4 @@ python robot.py
 `RUN_MODE=rain_alert` seleciona a rotina curta; `daily` e `weekly` preservam os relatórios. Executar `robot.py` com tópico configurado pode enviar notificações. Os testes usam simulações e interceptam as notificações.
 
 Dados: [Open-Meteo](https://open-meteo.com/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Modelo numérico em célula de grade não é medição por radar, chuva observada no aeroporto ou previsão hidrológica da bacia do Guaíba. O desempenho local ainda precisa de comparação retrospectiva com observações e meteorologista.
+A rotina de chuva também executa após alterações de código/testes na branch principal, permitindo verificar a implantação. Confirmado uso exclusivamente pessoal pelo usuário em 04/11/2026; eventual uso empresarial exige reavaliação da licença.

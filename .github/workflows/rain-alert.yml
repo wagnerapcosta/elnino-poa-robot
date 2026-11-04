@@ -1,6 +1,13 @@
 name: Radar POA - Alerta chuva 12h
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - robot.py
+      - rain_alert.py
+      - tests/**
+      - .github/workflows/rain-alert.yml
   schedule:
     # A cada hora; GitHub Actions pode atrasar. Não é serviço de tempo real.
     - cron: '17 * * * *'

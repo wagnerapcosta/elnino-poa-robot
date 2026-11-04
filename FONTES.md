@@ -37,3 +37,5 @@ Confirmar licença/API de produção, manter verificação REDEMET/INMET/Defesa 
 ## Verificação prática local
 
 Em 04/11/2026 às 15:07 BRT, Open-Meteo retornou série/unidades válidas e cálculo de 6,1 mm na janela 15:00–03:00, sem gatilho. AviationWeather retornou um METAR e um TAF; a validade temporal dessas mensagens não foi auditada. CPC, IRI, INMET, INPE e CEMADEN responderam à coleta HTML. A Defesa Civil abriu na consulta web, mas a consulta direta pelo robô terminou com conexão encerrada pelo servidor: integração não confirmada. Consulta válida não comprova precisão da previsão. Doze testes automatizados passaram; notificações interceptadas, sem envio real. Entrega ao aparelho e execução no GitHub Actions permanecem pendentes.
+
+Escopo de ativação confirmado pelo usuário em 04/11/2026: uso exclusivamente pessoal, sem aplicação empresarial. Nesse escopo, a restrição comercial da Free API não impede a ativação desta versão; reavaliar licença se o uso mudar. Nenhum gasto ou contratação autorizado.
