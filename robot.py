@@ -3,6 +3,7 @@ import re
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt
+from rain_alert import rain_alert, alert_text
 
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -14,7 +15,7 @@ from pathlib import Path
 # VERSÃO
 # ============================================================
 
-ROBOT_VERSION = "1.2"
+ROBOT_VERSION = "1.3"
 
 
 # ============================================================
@@ -65,7 +66,7 @@ SOURCES = [
     },
     {
         "name": "Defesa Civil RS",
-        "url": "https://www.defesacivil.rs.gov.br/avisos-e-alertas",
+        "url": "https://defesacivil.rs.gov.br/inicial",
         "layer": "tactical",
         "regional_scope": True,
     },
@@ -263,6 +264,7 @@ def collect_open_meteo() -> dict:
         "&hourly=precipitation,wind_gusts_10m"
         "&forecast_days=7"
         "&timezone=America%2FSao_Paulo"
+        "&precipitation_unit=mm&wind_speed_unit=kmh"
     )
 
     try:
@@ -330,6 +332,10 @@ def collect_aviation_weather() -> dict:
 # ============================================================
 
 def classify_keywords(text: str, source: dict) -> dict:
+    # Homepages/news contain historical events, navigation and negated phrases.
+    # They are references only until validity and geographic coverage are parsed.
+    if not source.get("validated_bulletin", False):
+        return {"level": "não classificado", "hits": {}, "regional_relevance": False}
     layer = source.get("layer", "strategic")
     text_lower = normalize_text(text)
 
@@ -369,16 +375,26 @@ def classify_keywords(text: str, source: dict) -> dict:
     }
 
 
-def classify_forecast(open_meteo_json: dict) -> dict:
+def classify_forecast(open_meteo_json: dict, now=None) -> dict:
+    short_rain = rain_alert(open_meteo_json, now=now)
     daily = open_meteo_json.get("daily", {})
     dates = daily.get("time", [])
     precipitation = daily.get("precipitation_sum", []) or []
     gusts = daily.get("wind_gusts_10m_max", []) or []
 
+    # Null/negative values are not zero rain. Invalid series is unavailable.
+    import math
+    valid_daily = (bool(dates) and len(dates) == len(precipitation) == len(gusts)
+                   and open_meteo_json.get("daily_units", {}).get("precipitation_sum") == "mm"
+                   and open_meteo_json.get("daily_units", {}).get("wind_gusts_10m_max") == "km/h"
+                   and all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                           and math.isfinite(v) and v >= 0 for v in precipitation + gusts))
+    if not valid_daily:
+        dates, precipitation, gusts = [], [], []
     p24_max = max(precipitation) if precipitation else 0
 
     p72_values = []
-    for i in range(len(precipitation)):
+    for i in range(max(0, len(precipitation) - 2)):
         p72_values.append(sum(precipitation[i:i + 3]))
 
     p72_max = max(p72_values) if p72_values else 0
@@ -389,6 +405,12 @@ def classify_forecast(open_meteo_json: dict) -> dict:
 
     p = THRESHOLDS["precipitation"]
     w = THRESHOLDS["wind"]
+
+    if short_rain["status"] != "ok":
+        reasons.append(alert_text(short_rain))
+    elif short_rain["triggered"]:
+        level = "amarelo"
+        reasons.append(alert_text(short_rain))
 
     if p24_max >= p["red_24h_mm"] or p72_max >= p["red_72h_mm"]:
         level = "vermelho"
@@ -411,6 +433,8 @@ def classify_forecast(open_meteo_json: dict) -> dict:
         reasons.append(f"Rajada prevista em nível amarelo: {gust_max:.1f} km/h.")
 
     return {
+        "rain_12h": short_rain,
+        "data_status": "ok" if valid_daily and short_rain["status"] == "ok" else "unavailable",
         "level": level,
         "dates": dates,
         "precipitation": precipitation,
@@ -422,7 +446,7 @@ def classify_forecast(open_meteo_json: dict) -> dict:
     }
 
 
-def determine_collection_reliability(web_results: list, open_meteo: dict, aviation: dict) -> dict:
+def determine_collection_reliability(web_results: list, open_meteo: dict, aviation: dict, forecast=None) -> dict:
     failed_sources = [
         item.get("source")
         for item in web_results
@@ -431,10 +455,10 @@ def determine_collection_reliability(web_results: list, open_meteo: dict, aviati
 
     critical_failures = []
 
-    if open_meteo.get("status") != "ok":
+    if open_meteo.get("status") != "ok" or (forecast is not None and forecast.get("data_status") != "ok"):
         critical_failures.append("Open-Meteo Forecast")
 
-    if aviation.get("status") not in ["ok", "partial_error"]:
+    if aviation.get("status") != "ok" or not aviation.get("metar") or not aviation.get("taf"):
         critical_failures.append("AviationWeather")
 
     if critical_failures:
@@ -466,7 +490,7 @@ def build_tactical_drivers(forecast: dict, web_results: list) -> list[str]:
         analysis = item.get("analysis", {})
         level = analysis.get("level", "verde")
 
-        if level == "verde":
+        if level in ["verde", "não classificado"]:
             continue
 
         hits = analysis.get("hits", {})
@@ -497,7 +521,7 @@ def build_strategic_drivers(web_results: list) -> list[str]:
         analysis = item.get("analysis", {})
         level = analysis.get("level", "verde")
 
-        if level == "verde":
+        if level in ["verde", "não classificado"]:
             continue
 
         hits = analysis.get("hits", {})
@@ -511,7 +535,7 @@ def build_strategic_drivers(web_results: list) -> list[str]:
         )
 
     if not drivers:
-        drivers.append("Sem gatilho estratégico relevante identificado.")
+        drivers.append("Contexto ENOS não classificado automaticamente; consultar boletins CPC/IRI datados.")
 
     return drivers
 
@@ -528,7 +552,7 @@ def actions_by_level(level: str, reliability: str, tactical_drivers: list[str]) 
 
     if no_tactical_trigger:
         return [
-            "Manter monitoramento. Sem readiness requerido neste momento.",
+            "Sem gatilho automático; confirmar avisos oficiais e condições locais antes de decidir readiness.",
             "Registrar lacunas de coleta, se houver.",
             "Aguardar próxima atualização automática ou boletim contratado.",
         ]
@@ -567,7 +591,7 @@ def decision_required(level: str, reliability: str, tactical_drivers: list[str])
         return "Sim. Validar fontes manualmente antes de concluir risco."
 
     if tactical_drivers == ["Sem gatilho tático relevante identificado."]:
-        return "Não. Sem readiness requerido neste momento."
+        return "Confirmar avisos oficiais e condições locais; ausência de gatilho não comprova ausência de risco."
 
     if level == "vermelho":
         return "Sim. Escalonamento imediato."
@@ -595,6 +619,10 @@ def format_hits(hits: dict) -> str:
     return " | ".join(parts) if parts else "Sem gatilho textual relevante"
 
 
+def forecast_value(forecast, key):
+    return f"{forecast[key]:.1f}" if forecast.get("data_status") == "ok" else "N/D"
+
+
 def build_mobile_summary(
     tactical_level: str,
     strategic_level: str,
@@ -615,10 +643,11 @@ def build_mobile_summary(
     lines.append(f"Risco tatico: {tactical_level.upper()}")
     lines.append(f"Contexto ENOS: {strategic_level.upper()}")
     lines.append(f"Confiabilidade: {reliability.upper()}")
+    lines.append(alert_text(forecast["rain_12h"]))
     lines.append("")
-    lines.append(f"Chuva 24h: {forecast.get('p24_max_mm', 0):.1f} mm")
-    lines.append(f"Chuva 72h: {forecast.get('p72_max_mm', 0):.1f} mm")
-    lines.append(f"Rajada max.: {forecast.get('gust_max_kmh', 0):.1f} km/h")
+    lines.append(f"Máx. chuva dia civil: {forecast_value(forecast, 'p24_max_mm')} mm")
+    lines.append(f"Máx. chuva 3 dias civis: {forecast_value(forecast, 'p72_max_mm')} mm")
+    lines.append(f"Rajada max.: {forecast_value(forecast, 'gust_max_kmh')} km/h")
     lines.append(f"METAR/TAF: {aviation.get('status')}")
     lines.append("")
     lines.append(f"Motivo: {main_driver}")
@@ -659,6 +688,9 @@ def build_full_report(
     lines.append(f"**Contexto estratégico ENOS:** {strategic_level.upper()}")
     lines.append(f"**Confiabilidade da coleta:** {reliability_info.get('reliability', 'indefinida').upper()}")
     lines.append(f"**Decisão requerida:** {decision_required(tactical_level, reliability_info.get('reliability', 'indefinida'), tactical_drivers)}")
+    lines.append(f"**{alert_text(forecast['rain_12h'])}**")
+    lines.append("Previsão: Open-Meteo (https://open-meteo.com/), dados sob CC BY 4.0. Totais diários são dias civis, não janelas móveis. Dados indisponíveis não representam zero chuva.")
+    lines.append(f"Estado da previsão quantitativa: {forecast.get('data_status')}. Valores diários abaixo só são utilizáveis com estado ok.")
     lines.append("")
 
     lines.append("## 1. Síntese operacional")
@@ -672,9 +704,9 @@ def build_full_report(
 
     lines.append("## 2. Previsão quantitativa POA - próximos 7 dias")
     lines.append("")
-    lines.append(f"- Máxima chuva em 24h: **{forecast.get('p24_max_mm', 0):.1f} mm**")
-    lines.append(f"- Máxima chuva acumulada em 72h: **{forecast.get('p72_max_mm', 0):.1f} mm**")
-    lines.append(f"- Máxima rajada prevista: **{forecast.get('gust_max_kmh', 0):.1f} km/h**")
+    lines.append(f"- Máxima chuva por dia civil: **{forecast_value(forecast, 'p24_max_mm')} mm**")
+    lines.append(f"- Máxima chuva em 3 dias civis completos: **{forecast_value(forecast, 'p72_max_mm')} mm**")
+    lines.append(f"- Máxima rajada prevista: **{forecast_value(forecast, 'gust_max_kmh')} km/h**")
     lines.append("")
 
     lines.append("## 3. Gatilhos táticos")
@@ -684,6 +716,7 @@ def build_full_report(
     lines.append("")
 
     lines.append("## 4. Contexto estratégico ENOS")
+    lines.append("Páginas institucionais são referências para verificação humana; não geram níveis automáticos sem validade e abrangência confirmadas.")
     lines.append("")
     for driver in strategic_drivers:
         lines.append(f"- {driver}")
@@ -767,7 +800,7 @@ def create_forecast_chart(forecast: dict, mode: str) -> str:
     precipitation = forecast.get("precipitation", [])
     gusts = forecast.get("gusts", [])
 
-    if not dates or not precipitation:
+    if not dates or not precipitation or forecast.get("data_status") != "ok":
         return "grafico_nao_gerado_sem_dados"
 
     labels = [d[5:] for d in dates]
@@ -806,7 +839,7 @@ def notify_ntfy(title: str, message: str, tactical_level: str):
 
     if not topic:
         print("NTFY_TOPIC não configurado. Pulando notificação ntfy.")
-        return
+        return False
 
     url = f"https://ntfy.sh/{topic}"
 
@@ -831,6 +864,7 @@ def notify_ntfy(title: str, message: str, tactical_level: str):
 
     response = requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=30)
     response.raise_for_status()
+    return True
 
 
 # ============================================================
@@ -876,6 +910,19 @@ def main():
     open_meteo = collect_open_meteo()
     forecast_analysis = classify_forecast(open_meteo.get("json", {}))
 
+    if mode == "rain_alert":
+        alert = forecast_analysis["rain_12h"]
+        message = alert_text(alert)
+        save_report(message + "\nFonte: Open-Meteo https://open-meteo.com/ (CC BY 4.0).", mode)
+        if alert["status"] != "ok":
+            raise RuntimeError("Monitoramento chuva 12h indisponível: " + str(alert.get("error")))
+        if alert["triggered"]:
+            delivered = notify_ntfy("Radar POA - ALERTA chuva >=20 mm/12h", message, "laranja")
+            if delivered is False:
+                raise RuntimeError("Alerta calculado, mas NTFY_TOPIC não configurado")
+        print(message)
+        return
+
     print("Coletando AviationWeather...")
     aviation = collect_aviation_weather()
 
@@ -887,7 +934,7 @@ def main():
         result["analysis"] = classify_keywords(result.get("text", ""), result)
         web_results.append(result)
 
-    reliability_info = determine_collection_reliability(web_results, open_meteo, aviation)
+    reliability_info = determine_collection_reliability(web_results, open_meteo, aviation, forecast_analysis)
 
     tactical_levels = [forecast_analysis["level"]]
     tactical_levels += [
@@ -903,7 +950,7 @@ def main():
     ]
 
     tactical_level = highest_level(tactical_levels)
-    strategic_level = highest_level(strategic_levels)
+    strategic_level = "não classificado"
 
     if reliability_info.get("reliability") == "insuficiente" and level_order(tactical_level) < level_order("amarelo"):
         tactical_level = "amarelo"
@@ -945,7 +992,8 @@ def main():
         tactical_drivers=tactical_drivers,
     )
 
-    title = f"Radar El Nino POA - {tactical_level.upper()}"
+    title = ("Radar POA - ALERTA chuva >=20 mm/12h" if forecast_analysis["rain_12h"]["triggered"]
+             else f"Radar El Nino POA - {tactical_level.upper()}")
     notify_ntfy(title, mobile_summary, tactical_level)
 
     save_history({
@@ -960,6 +1008,11 @@ def main():
         "tactical_drivers": " | ".join(tactical_drivers),
         "strategic_drivers": " | ".join(strategic_drivers),
         "p24_max_mm": forecast_analysis.get("p24_max_mm"),
+        "rain_12h_status": forecast_analysis["rain_12h"]["status"],
+        "rain_12h_mm": forecast_analysis["rain_12h"]["total_mm"],
+        "rain_12h_triggered": forecast_analysis["rain_12h"]["triggered"],
+        "rain_12h_start": forecast_analysis["rain_12h"]["start"],
+        "rain_12h_end": forecast_analysis["rain_12h"]["end"],
         "p72_max_mm": forecast_analysis.get("p72_max_mm"),
         "gust_max_kmh": forecast_analysis.get("gust_max_kmh"),
         "report_path": report_path,

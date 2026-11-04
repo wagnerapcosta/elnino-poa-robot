@@ -1,0 +1,43 @@
+name: Radar POA - Alerta chuva 12h
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - robot.py
+      - rain_alert.py
+      - tests/**
+      - .github/workflows/rain-alert.yml
+  schedule:
+    # A cada hora; GitHub Actions pode atrasar. Não é serviço de tempo real.
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: radar-chuva-12h
+  cancel-in-progress: false
+
+jobs:
+  rain-alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUN_MODE: rain_alert
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v
+      - run: python robot.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chuva-12h-${{ github.run_id }}
+          path: reports/rain_alert/
+          if-no-files-found: ignore
