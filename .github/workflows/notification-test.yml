@@ -22,5 +22,5 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt
-      - name: Enviar uma unica mensagem identificada como TESTE
-        run: python notification_test.py
+      - name: Enviar dois testes - falha principal e Defesa Civil POA
+        run: python notification_test.py --operational
