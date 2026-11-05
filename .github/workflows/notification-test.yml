@@ -2,10 +2,17 @@ name: Radar POA - TESTE de notificacao
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/notification-test.yml
+    inputs:
+      scenario:
+        description: Cenario explicito de teste (envios usam dados simulados)
+        type: choice
+        default: offline
+        options:
+          - offline
+          - pacote
+          - chuva-20mm
+          - falha-e-municipal
+          - falha-repetida-recuperacao
 
 permissions:
   contents: read
@@ -22,11 +29,21 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt
-      - name: Reenviar apenas os dois testes faltantes com intervalo
-        run: python notification_missing_test.py
+      - name: Executar somente o cenario solicitado
+        env:
+          TEST_SCENARIO: ${{ inputs.scenario }}
+        run: |
+          case "$TEST_SCENARIO" in
+            offline) python notification_patch_test.py --dry-run ;;
+            pacote) python notification_patch_test.py ;;
+            chuva-20mm) python notification_test.py ;;
+            falha-e-municipal) python notification_test.py --operational ;;
+            falha-repetida-recuperacao) python notification_test.py --dedup-recovery ;;
+            *) exit 1 ;;
+          esac
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: notification-missing-test-${{ github.run_id }}
-          path: reports/notification_missing_test.json
+          name: notification-test-${{ github.run_id }}
+          path: reports/notification*test.json
           if-no-files-found: ignore
