@@ -164,23 +164,30 @@ class NotificationState:
                     self.clear(key)
         if not changed_alerts:
             return []
-        notice = civil_defense_notice(dict(product, alerts=changed_alerts), now)
-        updating = any(self.data['events'].get('municipal:' + str(r['order']), {}).get('active')
-                       for a in changed_alerts for r in a['regions'])
-        if updating:
-            notice['title'] = 'ATUALIZACAO - ' + notice['title']
-        # Send the changed regions together; mark all only after acceptance.
-        try:
-            accepted = notify(notice['title'], notice['body'], notice['level']) is True
-            error = None if accepted else 'Serviço não confirmou envio'
-        except Exception as exc:
-            accepted, error = False, type(exc).__name__ + ': envio não confirmado'
-        if accepted:
-            for key, signature in signatures.items():
-                if key in {'municipal:' + str(r['order']) for a in changed_alerts for r in a['regions']}:
-                    self.data['events'][key] = dict(active=True, signature=signature, last_sent=now.isoformat())
-            self.save()
-        return [dict(title=notice['title'], status='sent' if accepted else 'failed', accepted=accepted, error=error)]
+        outcomes = []
+        pending = changed_alerts
+        while pending:
+            notice = civil_defense_notice(dict(product, alerts=pending), now)
+            included = set(notice['region_orders'])
+            keys = ['municipal:' + str(order) for order in notice['region_orders']]
+            if any(self.data['events'].get(key, {}).get('active') for key in keys):
+                notice['title'] = 'ATUALIZACAO - ' + notice['title']
+            # Each page has its own acceptance boundary. Never advance omitted or failed regions.
+            try:
+                accepted = notify(notice['title'], notice['body'], notice['level']) is True
+                error = None if accepted else 'Serviço não confirmou envio'
+            except Exception as exc:
+                accepted, error = False, type(exc).__name__ + ': envio não confirmado'
+            if accepted:
+                for key in keys:
+                    self.data['events'][key] = dict(active=True, signature=deepcopy(signatures[key]), last_sent=now.isoformat())
+                self.save()
+            outcomes.append(dict(title=notice['title'], status='sent' if accepted else 'failed',
+                                 accepted=accepted, error=error, region_orders=notice['region_orders']))
+            # Try the other pages even after a failure; retry failed regions only on the next poll.
+            pending = [dict(a, regions=[r for r in a['regions'] if r['order'] not in included])
+                       for a in pending if any(r['order'] not in included for r in a['regions'])]
+        return outcomes
 
     def rain(self, forecast, official, comparison, notice, now, notify):
         alert = forecast['rain_12h']
@@ -200,7 +207,8 @@ class NotificationState:
     def general(self, forecast, notice, now, notify):
         if forecast.get('data_status') != 'ok':
             return []
-        signature = dict(level=forecast.get('general_level', forecast['level']),
+        # The reference must match the actual summary, including non-forecast tactical changes.
+        signature = dict(level=notice['level'], rain_only=notice.get('rain_only') is True,
                          metrics=dict(p24=forecast['p24_max_mm'], p72=forecast['p72_max_mm'], gust=forecast['gust_max_kmh']))
         if signature['level'] == 'verde' and 'general' not in self.data['events']:
             self.data['events']['general'] = dict(active=True, signature=signature, baseline=True)
@@ -208,9 +216,23 @@ class NotificationState:
             return []
         # A low-level general message caused solely by the same 12h episode is
         # already conveyed by the specific alert; do not send it twice.
-        previous_level = self.data['events'].get('general', {}).get('signature', {}).get('level')
-        if forecast['rain_12h'].get('triggered') is True and signature['level'] in ('verde', 'amarelo') and previous_level not in ('laranja', 'vermelho'):
+        previous = self.data['events'].get('general', {})
+        previous_level = previous.get('signature', {}).get('level')
+        rain_signature = dict(kind='primary', level='laranja', metrics={'rain': forecast['rain_12h'].get('total_mm')})
+        if (notice.get('rain_only') is True and forecast['rain_12h'].get('triggered') is True
+                and signature['level'] in ('verde', 'amarelo') and previous_level not in ('laranja', 'vermelho')
+                and not self.changed('rain', rain_signature, materially_changed)):
+            if previous.get('last_sent') and not previous.get('covered_by_rain'):
+                # Keep the last accepted summary metrics; rain-only polls must
+                # not erase that baseline or cause an unchanged summary to repeat.
+                return []
             self.data['events']['general'] = dict(active=True, signature=signature, covered_by_rain=True)
             self.save()
             return []
-        return [self.send('general', signature, notice, now, notify, materially_changed)]
+        # A rain-covered baseline is not an independently delivered general summary.
+        # Its first independent notice must be attempted even at the same yellow level.
+        def relevant(old, new):
+            return (previous.get('covered_by_rain', False)
+                    or old.get('rain_only', False) and not new['rain_only']
+                    or materially_changed(old, new))
+        return [self.send('general', signature, notice, now, notify, relevant)]
