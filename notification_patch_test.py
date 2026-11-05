@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import tempfile
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -42,6 +43,9 @@ def run_test(notify, dry_run=False):
         title = 'TESTE - DADOS SIMULADOS - ' + label
         body = prefix + body
         assert len(body.encode('utf-8')) <= 4096, 'Mensagem de teste excede limite'
+        # Diagnostic precaution after a partial burst delivery; not a delivery guarantee.
+        if report['accepted'] and not dry_run:
+            time.sleep(10)
         accepted = notify(title, body, level) is True
         report['accepted'].append(dict(title=title, accepted=accepted, bytes=len(body.encode('utf-8'))))
         print(f'{title}: aceitação HTTP={accepted}', flush=True)
