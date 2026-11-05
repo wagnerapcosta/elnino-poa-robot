@@ -22,13 +22,11 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt
-      - name: Validar cenarios sem envio - DADOS SIMULADOS
-        run: python notification_patch_test.py --dry-run
-      - name: Testar nivel tatico e paginas municipais no celular - DADOS SIMULADOS
-        run: python notification_patch_test.py
+      - name: Consultar recibos dos quatro testes sem reenviar
+        run: python notification_delivery_check.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: notification-patch-test-${{ github.run_id }}
-          path: reports/notification_patch_test.json
+          name: notification-delivery-check-${{ github.run_id }}
+          path: reports/notification_delivery_check.json
           if-no-files-found: ignore
