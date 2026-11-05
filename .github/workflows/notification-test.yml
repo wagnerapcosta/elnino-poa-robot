@@ -22,11 +22,13 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt
-      - name: Testar falha repetida e recuperacao - DADOS SIMULADOS
-        run: python notification_test.py --dedup-recovery
+      - name: Validar cenarios sem envio - DADOS SIMULADOS
+        run: python notification_patch_test.py --dry-run
+      - name: Testar nivel tatico e paginas municipais no celular - DADOS SIMULADOS
+        run: python notification_patch_test.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: notification-dedup-test-${{ github.run_id }}
-          path: reports/notification_dedup_test.json
+          name: notification-patch-test-${{ github.run_id }}
+          path: reports/notification_patch_test.json
           if-no-files-found: ignore
