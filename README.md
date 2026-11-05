@@ -39,7 +39,13 @@ Origem dos dados, contratos e critérios em [FONTES.md](FONTES.md). Dados primá
 
 ## Teste de notificação
 
-`notification_test.py` simula exatamente20mm em12h, verifica o gatilho inclusivo e envia uma única mensagem com título e corpo identificados como TESTE/DADOS SIMULADOS. Não consulta meteorologia nem grava ocorrência no histórico. O fluxo `notification-test.yml` pode ser executado manualmente no Actions; também roda quando seu próprio arquivo é alterado na main, para verificar a configuração do teste. Não possui agendamento periódico. Aceitação pelo ntfy não comprova recebimento no celular.
+`notification_test.py` simula exatamente20mm em12h, verifica o gatilho inclusivo e envia uma única mensagem com título e corpo identificados como TESTE/DADOS SIMULADOS. Não consulta meteorologia nem grava ocorrência no histórico. O fluxo `notification-test.yml` é exclusivamente manual, sem disparo por alteração de arquivo nem agendamento periódico. O cenário padrão `offline` não envia mensagens; os demais cenários devem ser selecionados explicitamente. Aceitação pelo ntfy não comprova recebimento no celular.
+
+### Entrega no Android
+
+Nas configurações de inscrição do tópico ntfy, ative **Entrega instantânea** para usar o serviço de recebimento em primeiro plano. Sem essa opção, a versão Google Play em ntfy.sh usa Firebase e pode apresentar atrasos. O serviço em primeiro plano mantém uma notificação permanente e consome mais bateria. Consulte a [documentação oficial do ntfy](https://docs.ntfy.sh/subscribe/phone/#instant-delivery).
+
+Configuração ativada e conferida no aparelho em05/11/2026. Após a ativação, foram observadas no telefone quatro mensagens de uma sequência rápida e os quatro itens do teste completo (dois níveis táticos e duas páginas municipais), identificados como TESTE/DADOS SIMULADOS. Isso não comprova a causa exata da entrega parcial anterior nem garante entrega sob toda condição de rede, suspensão ou bateria. Não registrar HTTP aceito como confirmação do aparelho.
 
 
 ## Avisos no celular — v1.5
@@ -73,4 +79,6 @@ Só a aceitação HTTP atualiza a referência de envio; falhas de entrega podem 
 Persistência local é atômica; o estado é publicado no repositório ao final do job mesmo em falha da previsão. Estado corrompido não é zerado silenciosamente: a execução falha para correção. Interrupção entre aceitação ntfy e persistência no GitHub pode ocasionar reenvio residual; não há transação de entrega única entre os serviços. Recebimento no aparelho continua distinto da aceitação HTTP.
 
 
-O fluxo de teste agora seleciona `notification_test.py --dedup-recovery`: executa falha → mesma falha → recuperação com a máquina de estados real e arquivo temporário recarregado entre as três fases. São esperados exatamente dois envios: uma falha e uma normalização; a segunda falha é suprimida. Ambos são TESTE/DADOS SIMULADOS e não representam condição meteorológica real. A memória real de produção é conferida por hash antes/depois e não é alterada. O resultado fica no artifact `notification-dedup-test-*`. Não há nova tentativa automática de mensagem já aceita.
+O cenário manual `falha-repetida-recuperacao` seleciona `notification_test.py --dedup-recovery`: executa falha → mesma falha → recuperação com a máquina de estados real e arquivo temporário recarregado entre as três fases. São esperados exatamente dois envios: uma falha e uma normalização; a segunda falha é suprimida. Ambos são TESTE/DADOS SIMULADOS e não representam condição meteorológica real. A memória real de produção é conferida por hash antes/depois e não é alterada. O resultado fica no artifact `notification-test-*`. Não há nova tentativa automática de mensagem já aceita.
+
+O cenário `pacote` executa `notification_patch_test.py`: dois níveis táticos e duas páginas municipais, incluindo recusa simulada sem HTTP de uma página e retomada somente das regiões pendentes. Recarrega estado temporário entre fases, verifica os17registros e bloqueia repetições. Os quatro envios são espaçados em10segundos como precaução de teste; esse intervalo não altera o envio de produção e não constitui garantia de entrega.
