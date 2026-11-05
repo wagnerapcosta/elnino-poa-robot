@@ -1092,8 +1092,13 @@ def main(notification_state=None):
         tactical_drivers=tactical_drivers,
     )
 
+    # A yellow summary is redundant only when rain is its sole trigger. Other
+    # tactical sources, wind/daily rain thresholds or poor reliability are independent.
+    rain_only = (alert['triggered'] is True and forecast_analysis['general_level'] == 'verde'
+                 and all(level_order(level) == 0 for level in tactical_levels[1:])
+                 and reliability_info.get('reliability') != 'insuficiente' and not attention)
     general_notice = dict(title=f"Radar El Nino POA - {tactical_level.upper()}",
-                          body=mobile_summary, level=tactical_level)
+                          body=mobile_summary, level=tactical_level, rain_only=rain_only)
     general_outcomes = state.general(forecast_analysis, general_notice, reference_time, notify_ntfy)
     outcomes += general_outcomes
     notification_errors = notification_errors or any(row["status"] == "failed" for row in general_outcomes)

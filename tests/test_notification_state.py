@@ -141,12 +141,13 @@ class StateTests(unittest.TestCase):
         f['p24_max_mm']=110;s.general(f,notice(),NOW,n);self.assertEqual(n.call_count,1)
         f['p24_max_mm']=125;s.general(f,notice(),NOW,n);self.assertEqual(n.call_count,2)
         f['gust_max_kmh']=60;s.general(f,notice(),NOW,n);self.assertEqual(n.call_count,3)
-        f['general_level']='vermelho';s.general(f,notice(),NOW,n);self.assertEqual(n.call_count,4)
+        f['general_level']='vermelho';red_notice=dict(notice(),level='vermelho')
+        s.general(f,red_notice,NOW,n);self.assertEqual(n.call_count,4)
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'history.csv'
             with path.open('w',newline='',encoding='utf-8') as stream:
                 w=csv.DictWriter(stream,fieldnames=['tactical_level','p24_max_mm','p72_max_mm','gust_max_kmh','timestamp']);w.writeheader();w.writerow(dict(tactical_level='vermelho',p24_max_mm=125,p72_max_mm=100,gust_max_kmh=60,timestamp=NOW.isoformat()))
-            s=NotificationState(history_path=path);n.reset_mock();s.general(f,notice(),NOW,n);n.assert_not_called()
+            s=NotificationState(history_path=path);n.reset_mock();s.general(f,red_notice,NOW,n);n.assert_not_called()
 
     def test_same_rain_event_shared_by_hourly_daily_and_weekly(self):
         import robot
