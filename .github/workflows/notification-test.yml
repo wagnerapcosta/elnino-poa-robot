@@ -10,6 +10,7 @@ on:
         options:
           - offline
           - pacote
+          - essencial
           - chuva-20mm
           - falha-e-municipal
           - falha-repetida-recuperacao
@@ -36,6 +37,7 @@ jobs:
           case "$TEST_SCENARIO" in
             offline) python notification_patch_test.py --dry-run ;;
             pacote) python notification_patch_test.py ;;
+            essencial) python notification_essential_test.py ;;
             chuva-20mm) python notification_test.py ;;
             falha-e-municipal) python notification_test.py --operational ;;
             falha-repetida-recuperacao) python notification_test.py --dedup-recovery ;;
