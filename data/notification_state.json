@@ -17,7 +17,7 @@
       }
     },
     "municipal:13": {
-      "active": true,
+      "active": false,
       "last_sent": "2026-11-06T14:59:59.434152-03:00",
       "signature": {
         "description_sha256": "031736493e31b584d2ace3ea64dd2788142244ef8660190938c7cf7ab565126e",
