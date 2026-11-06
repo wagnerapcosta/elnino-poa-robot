@@ -127,11 +127,10 @@ class NotificationState:
             return [self.send('collection_failure', {'kind': kind}, failure, now, notify)]
         if not marker['failed']:
             return []
-        notice = dict(title='Radar POA - COLETA DA PREVISAO NORMALIZADA', level='verde',
-                      body=('COLETA DA PREVISÃO PRINCIPAL NORMALIZADA — Open-Meteo.\n'
-                            'Os dados horários e diários voltaram a passar nas verificações de formato, valores e cobertura.\n'
-                            f"Verificação: {now.astimezone(TZ).strftime('%d/%m/%Y %H:%M')} BRT.\n"
-                            'A normalização da coleta NÃO significa ausência de risco meteorológico. Consulte os alertas atuais.'))
+        notice = dict(title='SBPA | Coleta NORMALIZADA', level='verde',
+                      body=('Previsão horária e diária disponíveis novamente.\n'
+                            'Coleta normalizada NÃO significa ausência de risco.\n'
+                            f"Verificação: {now.astimezone(TZ).strftime('%d/%m %H:%M')} BRT\nFonte: Open-Meteo"))
         outcome = self.send('collection_recovery', {'episode': marker['since']}, notice, now, notify)
         if outcome['status'] in ('sent', 'suppressed'):
             marker['failed'] = False

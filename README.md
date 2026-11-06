@@ -13,6 +13,18 @@ O alerta principal nunca é cancelado, reduzido ou sujeito a votação entre fon
 
 ## Execução
 
+### Modelo Essencial — v1.8
+
+Apresentação escolhida pelo usuário em06/11/2026. O resumo usa título`SBPA | Radar El Nino POA`, risco, chuva12h, máximos por dia/3dias civis, rajada, motivo curto e ação. ENOS, confiabilidade, METAR/TAF e listas de falha de fontes permanecem nos relatórios completos, fora da notificação curta. Os máximos antigos não são janelas móveis: rótulos`Chuva dia (máx.)` e`Chuva 3 dias (máx.)` evitam essa ambiguidade.
+
+Chuva e vento são arredondados para inteiros somente na apresentação, com metade para cima. Comparações, limiar inclusivo>=20mm12h e memória numérica usam valores originais. Para evitar falso atingimento visual,19,99mm aparece`<20mm`;20,00mm aparece`20mm` e continua disparando. Valores indisponíveis não viram zero.
+
+Defesa Civil: títulos`SBPA | Defesa Civil | Aviso Amarelo`,`Alerta Laranja`,`Alerta Vermelho`ou`Alerta Roxo (risco extremo)`, segundo os quatro níveis do painel oficial. Vermelho corresponde a risco muito alto; extremo não é rebaixado para vermelho. Condições aparecem primeiro, seguidas da descrição resumida, validade, regiões e fonte. Números de chuva/vento exibidos no resumo são arredondados; texto e valores integrais da fonte permanecem no snapshot/relatório. Geografia SBPA/4km, seleção conservadora de borda, fonte de teste suprimida e paginação por aceitação permanecem ativos.
+
+Cada aviso tem ação nativa`Abrir fonte`. Textos longos continuam divididos em páginas e só as regiões incluídas em páginas aceitas avançam a memória. Falha e recuperação mantêm a frase essencial de que dados indisponíveis/coleta normalizada não significam ausência de risco. O tema/fonte visual são definidos pelo aplicativo ntfy.
+
+O cenário manual`essencial` executa`notification_essential_test.py`: três exemplos identificados no título e corpo comoTESTE — DADOS SIMULADOS (resumo,DefesaCivilvermelho,chuvaexatamente20mm12h), espaçados10segundos. Usa dados fictícios, não coleta meteorologia nem altera memória real. Aceitação HTTP permanece distinta de recebimento físico.
+
 ### Foco SBPA — v1.7
 
 O ponto de referência passa a ser o centro informado no desenho do usuário:29°59′40,61″S /51°10′00,10″W. É referência de acompanhamento, não ARP certificado ou limite operacional. O Open-Meteo é solicitado nesse ponto; a resolução de sua grade não é um círculo de4km.

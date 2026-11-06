@@ -26,9 +26,9 @@ def municipal_fixture(now):
             criticality='high_risk', label='RISCO ALTO SIMULADO', title_label='RISCO ALTO',
             start=now.isoformat(), end=(now + timedelta(hours=2)).isoformat(),
             active_now=True, timezone_assumed=False,
-            types=[f'Cenário fictício {group + 1}'],
+            types=[f'Cenário fictício {group + 1}: ' + 'amostra ' * 12 for _ in range(4)],
             description=('Texto fictício para verificar a divisão de mensagens longas. ' * 25),
-            regions=[dict(order=i, name=f'REGIÃO FICTÍCIA {i:02}') for i in orders]))
+            regions=[dict(order=i, name=f'REGIÃO FICTÍCIA {i:02} ' + 'x' * 65) for i in orders]))
     return dict(status='ok', alerts=alerts)
 
 

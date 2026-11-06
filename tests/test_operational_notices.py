@@ -50,11 +50,11 @@ class OperationalTests(unittest.TestCase):
         self.assertEqual(len(r['alerts'][0]['regions']),2)
         n=civil_defense_notice(r,NOW)
         self.assertIn('Região 1, Região 2',n['body'])
-        self.assertIn('DEFESA CIVIL POA',n['title'])
-        self.assertIn('não equivalem',n['body'])
+        self.assertIn('Defesa Civil',n['title'])
+        self.assertIn('não confirma ocorrência na pista',n['body'])
 
     def test_source_levels_and_priority_remain_distinct(self):
-        for criticality,level,title in [('attention_notice','amarelo','AVISO DE ATENCAO'),('high_risk','laranja','RISCO ALTO'),('very_high_risk','vermelho','RISCO MUITO ALTO'),('extreme_risk','vermelho','RISCO EXTREMO')]:
+        for criticality,level,title in [('attention_notice','amarelo','Aviso Amarelo'),('high_risk','laranja','Alerta Laranja'),('very_high_risk','vermelho','Alerta Vermelho'),('extreme_risk','vermelho','Alerta Roxo (risco extremo)')]:
             p=regions();p[0]['alert']=alert(criticality=criticality)
             n=civil_defense_notice(municipal(p),NOW)
             self.assertEqual(n['level'],level);self.assertIn(title,n['title'])
@@ -90,7 +90,7 @@ class OperationalTests(unittest.TestCase):
         p=regions()
         for i in range(17):p[i]['alert']=alert(id=i,criticality='extreme_risk' if i==16 else 'attention_notice',alert_description='Descrição muito longa '*400)
         n=civil_defense_notice(municipal(p),NOW)
-        self.assertIn('RISCO EXTREMO',n['title'])
+        self.assertIn('Alerta Roxo (risco extremo)',n['title'])
         self.assertLess(n['body'].index('risco extremo'),n['body'].index('Aviso de atenção'))
         self.assertLess(len(n['body'].encode('utf-8')),4096)
 
@@ -118,7 +118,7 @@ class OperationalTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'indisponível'):robot.main(notification_state=robot.NotificationState())
             self.assertEqual(notify.call_count,2)
             titles=[c.args[0] for c in notify.call_args_list]
-            self.assertIn('FALHA',titles[0]);self.assertIn('DEFESA CIVIL',titles[1])
+            self.assertIn('FALHA',titles[0]);self.assertIn('Defesa Civil',titles[1])
 
     def test_main_malformed_json_still_sends_failure(self):
         import robot
@@ -138,7 +138,7 @@ class OperationalTests(unittest.TestCase):
                 robot.main(notification_state=robot.NotificationState())
                 self.assertEqual(notify.call_count,2)
                 self.assertIn('FALHA',notify.call_args_list[0].args[0])
-                self.assertIn('12 horas permanece disponível',notify.call_args_list[0].args[1])
+                self.assertIn('12h permanece disponível',notify.call_args_list[0].args[1])
                 self.assertIn('ALERTA chuva',notify.call_args_list[1].args[0])
 
 

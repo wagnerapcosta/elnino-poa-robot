@@ -8,6 +8,8 @@ from rain_alert import rain_alert, alert_text
 from official_data import collect_official_data, compare_sources, official_summary, official_report
 from notification_state import NotificationState
 from airport_focus import load_focus
+from mobile_layout import forecast_body
+from email.header import Header
 
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -19,7 +21,7 @@ from pathlib import Path
 # VERSÃO
 # ============================================================
 
-ROBOT_VERSION = "1.7"
+ROBOT_VERSION = "1.8"
 
 
 # ============================================================
@@ -689,37 +691,9 @@ def build_mobile_summary(
     actions: list,
     tactical_drivers: list[str],
 ) -> str:
-    failed_sources = reliability_info.get("failed_sources", [])
-    reliability = reliability_info.get("reliability", "indefinida")
-
     main_driver = tactical_drivers[0] if tactical_drivers else "Sem gatilho tático relevante identificado."
-
-    lines = []
-    lines.append(f"Radar El Nino POA - {tactical_level.upper()}")
-    lines.append("")
-    lines.append(f"Risco tatico: {tactical_level.upper()}")
-    lines.append(f"Contexto ENOS: {strategic_level.upper()}")
-    lines.append(f"Confiabilidade: {reliability.upper()}")
-    lines.append(alert_text(forecast["rain_12h"]))
-    if forecast.get("official_comparison"):
-        lines.append(official_summary(forecast["official_data"], forecast["official_comparison"]))
-    lines.append("")
-    lines.append(f"Máx. chuva dia civil: {forecast_value(forecast, 'p24_max_mm')} mm")
-    lines.append(f"Máx. chuva 3 dias civis: {forecast_value(forecast, 'p72_max_mm')} mm")
-    lines.append(f"Rajada max.: {forecast_value(forecast, 'gust_max_kmh')} km/h")
-    lines.append(f"METAR/TAF: {aviation.get('status')}")
-    lines.append("")
-    lines.append(f"Motivo: {main_driver}")
-
-    if failed_sources:
-        lines.append(f"Fontes com erro: {', '.join(failed_sources)}")
-    else:
-        lines.append("Fontes web: ok")
-
-    lines.append("")
-    lines.append(f"Acao principal: {actions[0]}")
-
-    return "\n".join(lines)
+    return forecast_body(forecast, risk=tactical_level, reason=main_driver,
+                         action=actions[0] if actions else None)
 
 
 def build_full_report(
@@ -922,10 +896,18 @@ def notify_ntfy(title: str, message: str, tactical_level: str):
         tags = "rotating_light,warning"
 
     headers = {
-        "Title": title,
+        "Title": Header(title, 'utf-8', maxlinelen=998).encode() if any(ord(c) > 127 for c in title) else title,
         "Priority": priority,
         "Tags": tags,
     }
+
+    if 'defesa civil' in title.casefold():
+        source_url = 'https://prefeitura.poa.br/poaclima/'
+    elif 'cptec' in title.casefold():
+        source_url = 'https://www.cptec.inpe.br/'
+    else:
+        source_url = 'https://open-meteo.com/'
+    headers.update(Click=source_url, Actions='view, Abrir fonte, ' + source_url)
 
     response = requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=30)
     response.raise_for_status()
@@ -1000,8 +982,12 @@ def main(notification_state=None):
     alert = forecast_analysis["rain_12h"]
     attention = comparison["cptec_attention"]
     message = alert_text(alert) + "\n" + official_summary(official, comparison)
-    rain_notice = dict(title="Radar POA - ALERTA chuva >=20 mm/12h" if alert["triggered"] is True
-                       else "Radar POA - ATENCAO checagem CPTEC", body=message,
+    mobile_rain = forecast_body(forecast_analysis, action='Acompanhar a previsão e as condições locais.')
+    if attention:
+        from mobile_layout import integer
+        mobile_rain += '\nChecagem CPTEC: ' + integer(min(official['cptec']['alignment_start_mm'], official['cptec']['alignment_end_mm'])) + ' mm/12h (previsão complementar).'
+    rain_notice = dict(title="SBPA | ALERTA chuva >=20 mm/12h" if alert["triggered"] is True
+                       else "SBPA | ATENCAO CPTEC", body=mobile_rain,
                        level="laranja" if alert["triggered"] is True else "amarelo")
     outcomes += state.rain(forecast_analysis, official, comparison, rain_notice, reference_time, notify_ntfy)
     (snapshot_dir / reference_time.strftime("notificacoes_operacionais_%Y%m%d_%H%M%S.json")).write_text(
@@ -1100,7 +1086,7 @@ def main(notification_state=None):
     rain_only = (alert['triggered'] is True and forecast_analysis['general_level'] == 'verde'
                  and all(level_order(level) == 0 for level in tactical_levels[1:])
                  and reliability_info.get('reliability') != 'insuficiente' and not attention)
-    general_notice = dict(title=f"Radar El Nino POA - {tactical_level.upper()}",
+    general_notice = dict(title="SBPA | Radar El Nino POA",
                           body=mobile_summary, level=tactical_level, rain_only=rain_only)
     general_outcomes = state.general(forecast_analysis, general_notice, reference_time, notify_ntfy)
     outcomes += general_outcomes

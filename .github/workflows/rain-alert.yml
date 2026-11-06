@@ -10,6 +10,7 @@ on:
       - operational_notices.py
       - notification_state.py
       - airport_focus.py
+      - mobile_layout.py
       - config/airport_focus.json
       - tests/**
       - .github/workflows/rain-alert.yml
