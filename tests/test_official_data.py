@@ -122,7 +122,8 @@ class OfficialTests(unittest.TestCase):
         self.assertEqual(p,original)
         self.assertTrue(p['triggered'])
         c=o.compare_sources(primary(0),{'cptec':parsed_cptec(2)})
-        self.assertTrue(c['cptec_attention'])
+        self.assertTrue(c['cptec_regional_attention'])
+        self.assertFalse(c['cptec_attention'])
         c=o.compare_sources(primary(20),{'cptec':parsed_cptec(2)})
         self.assertIn('acima',c['state'])
 
@@ -131,21 +132,22 @@ class OfficialTests(unittest.TestCase):
         r=o.compare_sources(primary(0),{'cptec':c})
         self.assertIn('inconclusiva',r['state']);self.assertFalse(r['cptec_attention'])
 
-    def test_unavailable_primary_can_have_cptec_attention(self):
+    def test_unavailable_primary_retains_regional_cptec_without_local_trigger(self):
         r=o.compare_sources({'status':'unavailable','triggered':None},{'cptec':parsed_cptec()})
-        self.assertTrue(r['cptec_attention'])
+        self.assertTrue(r['cptec_regional_attention'])
+        self.assertFalse(r['cptec_attention'])
         self.assertIn('inconclusiva',r['state'])
 
     def test_transport_failure_and_malformed_json_are_not_zero(self):
         for side_effect in [requests.Timeout('tempo esgotado'), ValueError('JSON inválido')]:
             with patch.object(o.requests,'get',side_effect=side_effect):
                 r=o.collect_official_data(NOW)
-            self.assertEqual(len(r),5)
+            self.assertEqual(len(r),6)
             self.assertTrue(all(p['status']=='unavailable' and p['error'] for p in r.values()))
 
     def test_rain_mode_does_not_cancel_primary_or_hide_cptec(self):
         import robot
-        for total,cp,expected_title in [(20,0,'ALERTA'),(0,2,'ATENCAO'),(0,0,None)]:
+        for total,cp,expected_title in [(20,0,'ALERTA'),(0,2,None),(0,0,None)]:
             f=robot.classify_forecast(payload(total),NOW)
             with patch.object(robot,'collect_official_data',return_value={'cptec':parsed_cptec(cp)}), patch.object(robot,'Path'), patch.object(robot,'ensure_dirs'), patch.object(robot,'save_report'), patch.object(robot,'classify_forecast',return_value=f), patch.object(robot,'collect_open_meteo',return_value={'status':'ok','json':payload(total)}), patch.object(robot,'notify_ntfy',return_value=True) as notify, patch.dict('os.environ',{'RUN_MODE':'rain_alert'}):
                 robot.main(notification_state=robot.NotificationState())

@@ -13,12 +13,14 @@ import json
 import requests
 from bs4 import BeautifulSoup
 from rain_alert import TZ
+from airport_focus import focus_municipal, distance_km, load_focus
 
 CPTEC_URL = 'https://s1.cptec.inpe.br/grafico/Modelos/Multimodel/pag_web/horario/1276.json'
 INMET_URL = 'https://apiprevmet3.inmet.gov.br/previsao/4314902'
 INMET_WARNINGS_URL = 'https://apiprevmet3.inmet.gov.br/avisos/ativos'
 POA_URL = 'https://api.helpertecnologia.com.br/defesa-civil/bff/climate/previsions/poadc'
 POA_ALERTS_URL = 'https://api.helpertecnologia.com.br/defesa-civil/bff/climate/alert/public/poadc/grouped-by-region'
+POA_STATIONS_URL = 'https://api.helpertecnologia.com.br/defesa-civil/bff/public/dashboard/weather-monitor/poadc?station_type=METEOROLOGICAL'
 IBGE = '4314902'
 POA_LEVELS = {
     'attention_notice': ('Aviso de atenção', 'AVISO DE ATENCAO'),
@@ -42,9 +44,39 @@ def stamp(value):
 
 
 def distance(lat, lon):
-    a, b = radians(lat + 29.9939), radians(lon + 51.1711)
-    x = sin(a / 2)**2 + cos(radians(lat)) * cos(radians(-29.9939)) * sin(b / 2)**2
-    return round(6371 * 2 * asin(sqrt(x)), 1)
+    return round(distance_km(lat, lon), 1)
+
+
+def parse_poa_stations(data, now):
+    if not isinstance(data, list) or not data:
+        raise ValueError('Lista de estações meteorológicas ausente')
+    stations, skipped = [], 0
+    for row in data:
+        try:
+            if row.get('station_type') != 'METEOROLOGICAL':
+                continue
+            lat, lon = float(row['latitude']), float(row['longitude'])
+            if not isfinite(lat) or not isfinite(lon) or not -90 <= lat <= 90 or not -180 <= lon <= 180:
+                raise ValueError('Coordenadas inválidas')
+            km = distance_km(lat, lon)
+            if km > 50:
+                continue
+            sensors = [dict(sensor_type=s['sensor_type'], value=float(number(s['value'])),
+                            unit=s.get('unit'), source_time=s.get('created_at'))
+                       for s in row.get('sensor_readings', [])
+                       if s.get('sensor_type') in ('accumulated_rain', 'wind_speed') and s.get('value') is not None]
+            stations.append(dict(id=str(row['id']), name=str(row['name']), lat=lat, lon=lon,
+                                 distance_km=round(km, 3), within_focus=km <= load_focus()['radius_km'],
+                                 readings=sensors, last_read_at=row.get('last_read_at')))
+        except (KeyError, ValueError, TypeError):
+            skipped += 1
+    if not stations:
+        raise ValueError('Nenhuma estação com localização válida próxima de SBPA')
+    stations.sort(key=lambda s: s['distance_km'])
+    inside = [s for s in stations if s['within_focus']]
+    return dict(stations=(inside or stations[:1])[:3], skipped_records=skipped, optional=True,
+                scope='Estações municipais próximas; observação complementar, não previsão em SBPA.',
+                limitation='Janela do acumulado e idade efetiva da medição não documentadas nesta rota; não usar para validar 20 mm/12h.')
 
 
 def parse_cptec(data, now):
@@ -241,6 +273,7 @@ PRODUCTS = {
     'inmet_warnings': ('INMET avisos', INMET_WARNINGS_URL, parse_inmet_warnings),
     'poa': ('POA Clima / Prefeitura', POA_URL, parse_poa),
     'poa_alerts': ('Defesa Civil POA / POA Clima', POA_ALERTS_URL, parse_poa_alerts),
+    'poa_stations': ('Estações POA Clima próximas de SBPA', POA_STATIONS_URL, parse_poa_stations),
 }
 
 
@@ -248,16 +281,19 @@ def collect_official_data(now=None):
     now = now or datetime.now(TZ)
     def fetch(key):
         name, url, parser = PRODUCTS[key]
-        result = dict(source=name, url=url, fetched_at=now.isoformat(), status='unavailable', error=None)
+        result = dict(source=name, url=url, fetched_at=now.isoformat(), status='unavailable', error=None,
+                      optional=key == 'poa_stations')
         try:
-            response = requests.get(url, timeout=25, headers={'User-Agent': 'POA-Radar/1.5'})
+            response = requests.get(url, timeout=25, headers={'User-Agent': 'POA-Radar/1.7', 'x-timezone': 'America/Sao_Paulo'})
             response.raise_for_status()
             result.update(parser(response.json(), now))
             result['status'] = 'partial' if result.get('skipped_records') else 'ok'
+            if key == 'poa_alerts':
+                result = focus_municipal(result)
         except (requests.RequestException, ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError) as exc:
             result['error'] = str(exc)
         return key, result
-    with ThreadPoolExecutor(max_workers=5) as pool:
+    with ThreadPoolExecutor(max_workers=6) as pool:
         return dict(pool.map(fetch, PRODUCTS))
 
 
@@ -273,7 +309,11 @@ def compare_sources(primary, official, open_meteo_json=None):
         state = 'concordância indicativa acima do limiar' if c_signal else 'concordância indicativa abaixo do limiar'
     else:
         state = 'divergência no sinal de 20 mm/12h'
-    attention = c_ok and c_signal is True and (not p_ok or same_window and primary.get('triggered') is False)
+    regional_attention = c_ok and c_signal is True and (not p_ok or same_window and primary.get('triggered') is False)
+    config = load_focus()
+    km = cptec.get('airport_distance_km')
+    local_point = isinstance(km, (float, int)) and not isinstance(km, bool) and 0 <= km <= config['radius_km'] + config['boundary_margin_km']
+    attention = regional_attention and local_point
     daily_pairs = []
     forecast_payload = open_meteo_json if isinstance(open_meteo_json, dict) else {}
     daily = forecast_payload.get('daily') or {}
@@ -293,7 +333,8 @@ def compare_sources(primary, official, open_meteo_json=None):
                                             difference_mm=float(number(row['rain_mm']) - om)))
                 except ValueError:
                     pass
-    return dict(state=state, cptec_attention=bool(attention), daily_pairs=daily_pairs,
+    return dict(state=state, cptec_attention=bool(attention), cptec_regional_attention=bool(regional_attention),
+                cptec_point_within_focus=bool(local_point), daily_pairs=daily_pairs,
                 limitation='Checagem cruzada de previsões, sem validação estatística; modelos podem compartilhar insumos. INMET e POA diário não confirmam o total de 12h.')
 
 
@@ -301,6 +342,8 @@ def official_summary(official, comparison):
     lines = ['Checagem oficial: ' + comparison['state'] + '.']
     if comparison.get('cptec_attention'):
         lines.append('ATENÇÃO COMPLEMENTAR: CPTEC sugere ultrapassagem nas duas hipóteses horárias; conferir divergência ou indisponibilidade da fonte principal.')
+    elif comparison.get('cptec_regional_attention'):
+        lines.append('CPTEC: sinal regional acima do limiar em ponto externo ao foco; contexto complementar, sem acionar alerta local.')
     cptec = official.get('cptec', {})
     if cptec.get('status') == 'ok':
         a, b = cptec['alignment_start_mm'], cptec['alignment_end_mm']
@@ -318,7 +361,8 @@ def official_summary(official, comparison):
         lines.append('INMET previsão por turnos: indisponível.')
     municipal = official.get('poa_alerts', {})
     if municipal.get('status') in ('ok', 'partial'):
-        lines.append(f"Defesa Civil POA: {len(municipal['alerts'])} aviso(s)/alerta(s) agrupado(s), consulta de {municipal['region_count']}/17 regiões.")
+        area = ' no foco SBPA/4 km' if municipal.get('airport_focus') else ' municipais'
+        lines.append(f"Defesa Civil POA: {len(municipal['alerts'])} aviso(s)/alerta(s){area}, consulta de {municipal['region_count']}/17 regiões.")
         if municipal.get('status') == 'partial':
             lines.append('Consulta municipal parcial; registros/regiões não avaliados não significam ausência de alerta.')
     else:
@@ -328,6 +372,10 @@ def official_summary(official, comparison):
         lines.append(f"Dia {r['date']}: POA Clima {r['poa_mm']:.1f} mm; Open-Meteo {r['open_meteo_mm']:.1f} mm. Totais diários, não 12h.")
     else:
         lines.append('POA Clima: comparação quantitativa diária indisponível.')
+    stations = official.get('poa_stations', {})
+    if stations.get('status') in ('ok', 'partial'):
+        lines.append('Estações próximas (observação complementar): ' + '; '.join(
+            f"{s['name']} ({s['distance_km']:.1f} km)" for s in stations['stations']) + '.')
     return '\n'.join(lines)
 
 
@@ -351,4 +399,12 @@ def official_report(official, comparison):
         lines.append(f"- Defesa Civil POA — {row['label']}; regiões: {cell(regions)}; vigência {row['start']} a {row['end']}; ativo agora: {row['active_now']}. Tipos: {cell(', '.join(row['types']))}. Descrição: {cell(row['description'])}")
         if row.get('timezone_assumed'):
             lines.append('  Fonte municipal sem fuso explícito; horários interpretados em BRT.')
+    for entry in official.get('poa_alerts', {}).get('excluded_alerts', []):
+        alert = entry['alert']
+        lines.append(f"- Municipal mantido somente no relatório ({entry['reason']}): {cell(alert['description'])}; regiões originais: {cell(', '.join(r['name'] for r in alert['regions']))}.")
+    station_product = official.get('poa_stations', {})
+    for station in station_product.get('stations', []):
+        lines.append(f"- Estação {cell(station['name'])}: {station['distance_km']:.3f} km de SBPA; dentro do raio: {station['within_focus']}; leituras publicadas: {cell(json.dumps(station['readings'], ensure_ascii=False))}.")
+    if station_product.get('stations'):
+        lines.append(station_product['limitation'])
     return '\n'.join(lines) + '\n'

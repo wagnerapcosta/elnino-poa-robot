@@ -40,6 +40,12 @@ def civil_defense_notice(product, now):
     lines = ['AVISOS/ALERTAS DA DEFESA CIVIL MUNICIPAL DE PORTO ALEGRE.',
              f"Consulta: {now.astimezone(TZ).strftime('%d/%m/%Y %H:%M')} BRT.",
              'Origem: POA Clima. A abrangência é por região; conferir a aplicabilidade a SBPA.']
+    if product.get('airport_focus'):
+        lines[0] = 'DEFESA CIVIL POA — FOCO SBPA E ENTORNO DE 4 KM.'
+        lines[2] = 'Origem: POA Clima. Região sobreposta ao entorno; não confirma ocorrência na pista.'
+        if not product['airport_focus'].get('geometry_verified'):
+            lines[0] = 'DEFESA CIVIL POA — ABRANGÊNCIA A CONFIRMAR.'
+            lines[2] = 'Geografia não confirmada para todos os registros; consultar o mapa oficial.'
     if product.get('status') == 'partial':
         lines.append('CONSULTA PARCIAL: alguns registros/regiões não puderam ser avaliados.')
     footer = ['\nEstes avisos não equivalem ao gatilho quantitativo de 20 mm/12h.',

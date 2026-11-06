@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from rain_alert import rain_alert, alert_text
 from official_data import collect_official_data, compare_sources, official_summary, official_report
 from notification_state import NotificationState
+from airport_focus import load_focus
 
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -18,7 +19,7 @@ from pathlib import Path
 # VERSÃO
 # ============================================================
 
-ROBOT_VERSION = "1.6"
+ROBOT_VERSION = "1.7"
 
 
 # ============================================================
@@ -28,8 +29,8 @@ ROBOT_VERSION = "1.6"
 AIRPORT = {
     "icao": "SBPA",
     "name": "Porto Alegre Airport",
-    "lat": -29.9939,
-    "lon": -51.1711,
+    "lat": load_focus()['center']['lat'],
+    "lon": load_focus()['center']['lon'],
     "timezone": "America/Sao_Paulo",
 }
 
@@ -102,8 +103,9 @@ SOURCES = [
     {
         "name": "Defesa Civil RS",
         "url": "https://defesacivil.rs.gov.br/inicial",
-        "layer": "tactical",
+        "layer": "consultation",
         "regional_scope": True,
+        "consultation_note": "Notícias estaduais são contexto; sem geografia/validade local verificadas não elevam o risco de SBPA por palavras-chave.",
     },
 ]
 
@@ -1029,7 +1031,8 @@ def main(notification_state=None):
         web_results.append(result)
 
     reliability_info = determine_collection_reliability(web_results, open_meteo, aviation, forecast_analysis)
-    reliability_info["official_failures"] = [v["source"] for v in official.values() if v.get("status") != "ok"]
+    reliability_info["official_failures"] = [v["source"] for v in official.values()
+                                            if v.get("status") != "ok" and not v.get("optional")]
     if reliability_info["official_failures"] and reliability_info["reliability"] == "confiavel":
         reliability_info["reliability"] = "parcial"
 
