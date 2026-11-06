@@ -15,6 +15,20 @@
         },
         "rain_only": false
       }
+    },
+    "municipal:13": {
+      "active": true,
+      "last_sent": "2026-11-06T14:59:59.434152-03:00",
+      "signature": {
+        "description_sha256": "031736493e31b584d2ace3ea64dd2788142244ef8660190938c7cf7ab565126e",
+        "end": "2026-11-06T19:10:00+00:00",
+        "level": "attention_notice",
+        "region": "extremo sul",
+        "start": "2026-11-06T17:40:00+00:00",
+        "types": [
+          "nível de rio"
+        ]
+      }
     }
   },
   "schema": 1
