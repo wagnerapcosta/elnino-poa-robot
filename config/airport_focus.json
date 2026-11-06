@@ -1,0 +1,101 @@
+{
+  "center": {
+    "lat": -29.99461388888889,
+    "lon": -51.166694444444445
+  },
+  "regions": [
+    {
+      "order": 1,
+      "name": "HUMAITÁ/NAVEGANTES",
+      "distance_km": 0.0
+    },
+    {
+      "order": 2,
+      "name": "NOROESTE",
+      "distance_km": 0.183
+    },
+    {
+      "order": 3,
+      "name": "LESTE",
+      "distance_km": 3.704
+    },
+    {
+      "order": 4,
+      "name": "LOMBA DO PINHEIRO",
+      "distance_km": 7.229
+    },
+    {
+      "order": 5,
+      "name": "NORTE",
+      "distance_km": 1.182
+    },
+    {
+      "order": 6,
+      "name": "NORDESTE",
+      "distance_km": 5.664
+    },
+    {
+      "order": 7,
+      "name": "PARTENON",
+      "distance_km": 6.639
+    },
+    {
+      "order": 8,
+      "name": "RESTINGA",
+      "distance_km": 13.812
+    },
+    {
+      "order": 9,
+      "name": "GLÓRIA",
+      "distance_km": 8.929
+    },
+    {
+      "order": 10,
+      "name": "CRUZEIRO",
+      "distance_km": 8.195
+    },
+    {
+      "order": 11,
+      "name": "CRISTAL",
+      "distance_km": 11.341
+    },
+    {
+      "order": 12,
+      "name": "CENTRO SUL",
+      "distance_km": 9.273
+    },
+    {
+      "order": 13,
+      "name": "EXTREMO SUL",
+      "distance_km": 18.633
+    },
+    {
+      "order": 14,
+      "name": "EIXO BALTAZAR",
+      "distance_km": 2.846
+    },
+    {
+      "order": 15,
+      "name": "SUL",
+      "distance_km": 13.765
+    },
+    {
+      "order": 16,
+      "name": "CENTRO",
+      "distance_km": 3.172
+    },
+    {
+      "order": 17,
+      "name": "ILHAS",
+      "distance_km": 4.081
+    }
+  ],
+  "icao": "SBPA",
+  "radius_km": 4.0,
+  "boundary_margin_km": 0.1,
+  "verified_on": "2026-11-06",
+  "center_source": "Coordenadas do desenho informado pelo usuário; referência, não ARP certificado.",
+  "geometry_source": "https://clima.helpertecnologia.com.br/portoalegre.json",
+  "geometry_sha256": "019801711cfbb76bfaef45a2c82a8fe032582773505cf82593ea62dc64b2b1ce",
+  "method": "Menor distância ao polígono municipal, incluindo ilhas e furos; projeção equiretangular local, margem conservadora de 100 m. Distância não é ao centroide."
+}

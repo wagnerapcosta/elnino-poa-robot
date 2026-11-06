@@ -9,6 +9,8 @@ on:
       - official_data.py
       - operational_notices.py
       - notification_state.py
+      - airport_focus.py
+      - config/airport_focus.json
       - tests/**
       - .github/workflows/rain-alert.yml
   schedule:
