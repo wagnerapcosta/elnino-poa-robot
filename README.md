@@ -39,7 +39,9 @@ O ponto CPTEC1276 fica aproximadamente7,4km da referência: continua na checagem
 
 Configuração e proveniência em`config/airport_focus.json`; geometria vinculada pelo [painel oficial POA Clima](https://prefeitura.poa.br/poaclima/), [arquivo de regiões](https://clima.helpertecnologia.com.br/portoalegre.json). Distâncias por projeção local, margem conservadora e snapshot datado; rever a configuração quando o mapa oficial ou ponto de referência mudar. A nova apresentação textual será escolhida separadamente entre as prévias.
 
-A rotina horária, no minuto17 UTC, consulta seis rotas oficiais em paralelo além do Open-Meteo. A quinta fornece avisos/alertas regionais da Defesa Civil POA e a sexta as estações próximas como complemento opcional. Também executa após alterações relevantes na branch principal. Pode haver atraso no GitHub Actions. As três rotinas compartilham memória de notificações: um evento inalterado é suprimido mesmo quando aparece em modos diferentes.
+A rotina horária tem disparos aos minutos 07, 27 e 47. Um disparo agendado só consulta as fontes se ainda não houver uma execução bem-sucedida da rotina de chuva iniciada naquela hora. Se a verificação do histórico falhar, a consulta segue com a deduplicação normal. O GitHub pode atrasar ou omitir disparos, inclusive os de reserva. Para verificar a cobertura real, conte o passo `Consultar previsao e avaliar alertas`, pois um fluxo que pulou esse passo não realizou nova consulta.
+
+A rotina consulta seis rotas oficiais em paralelo além do Open-Meteo. A quinta fornece avisos/alertas regionais da Defesa Civil POA e a sexta as estações próximas como complemento opcional. A rotina também executa após alterações relevantes na branch principal e sob acionamento manual. As três rotinas compartilham a memória de notificações, que suprime um evento inalterado mesmo quando aparece em modos diferentes.
 
 `RUN_MODE=rain_alert` executa a rotina curta; `daily` e `weekly` geram relatórios completos. O segredo `NTFY_TOPIC` existente é usado sem expor seu valor. Sua ausência com alerta/atenção ativo causa falha explícita. Confirmação HTTP não comprova recebimento no aparelho.
 
