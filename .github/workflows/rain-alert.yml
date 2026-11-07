@@ -13,13 +13,17 @@ on:
       - mobile_layout.py
       - config/airport_focus.json
       - tests/**
+      - .github/scripts/rain_alert_coverage.py
       - .github/workflows/rain-alert.yml
   schedule:
-    # A cada hora; GitHub Actions pode atrasar. Não é serviço de tempo real.
-    - cron: '17 * * * *'
+    # Três oportunidades por hora. O GitHub pode atrasar ou omitir disparos.
+    - cron: '7 * * * *'
+    - cron: '27 * * * *'
+    - cron: '47 * * * *'
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: write
 
 concurrency:
@@ -39,14 +43,26 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+      - name: Verificar se a hora ja foi consultada
+        id: coverage
+        if: github.event_name == 'schedule'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/rain_alert_coverage.py
       - uses: actions/setup-python@v5
+        if: steps.coverage.outputs.covered != 'true'
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt
+        if: steps.coverage.outputs.covered != 'true'
       - run: python -m unittest discover -s tests -v
-      - run: python robot.py
+        if: steps.coverage.outputs.covered != 'true'
+      - name: Consultar previsao e avaliar alertas
+        if: steps.coverage.outputs.covered != 'true'
+        run: python robot.py
       - name: Persistir memoria de notificacoes e historico
-        if: always()
+        if: always() && steps.coverage.outputs.covered != 'true'
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -57,7 +73,7 @@ jobs:
           git pull --rebase origin main
           git push origin HEAD:main
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.coverage.outputs.covered != 'true'
         with:
           name: chuva-12h-${{ github.run_id }}
           path: reports/rain_alert/
