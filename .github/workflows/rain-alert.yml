@@ -21,6 +21,11 @@ on:
     - cron: '27 * * * *'
     - cron: '47 * * * *'
   workflow_dispatch:
+    inputs:
+      hourly_fallback:
+        description: 'Consultar somente se esta hora ainda nao foi coberta'
+        type: boolean
+        default: false
 
 permissions:
   actions: read
@@ -45,7 +50,7 @@ jobs:
           fetch-depth: 0
       - name: Verificar se a hora ja foi consultada
         id: coverage
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.hourly_fallback)
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
