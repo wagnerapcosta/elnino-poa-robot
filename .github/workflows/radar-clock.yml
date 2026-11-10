@@ -1,0 +1,50 @@
+name: Radar SBPA - Temporizador de reserva
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/radar-clock.yml]
+  schedule:
+    # Reinicia o ciclo se um disparo interno falhar.
+    - cron: '53 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: radar-sbpa-clock
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment:
+      name: radar-sbpa-clock
+      deployment: false
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Confirmar espera do temporizador
+        id: timer
+        run: |
+          timer=$(curl --fail --silent --show-error --max-time 15 \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/environments/radar-sbpa-clock" | \
+            jq -er '.protection_rules[] | select(.type == "wait_timer") | .wait_timer')
+          created=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)
+          elapsed=$(( $(date -u +%s) - $(date -u -d "$created" +%s) ))
+          if [[ "$timer" != 40 || "$elapsed" -lt 2340 ]]; then
+            echo 'Temporizador de 40 minutos ausente ou espera não observada. Ciclo interrompido.'
+            exit 1
+          fi
+          echo "Temporizador de 40 minutos confirmado; execução criada há $elapsed segundos."
+      - name: Acionar consulta de reserva
+        run: |
+          printf '%s\n' '{"ref":"main","inputs":{"hourly_fallback":true}}' | \
+            gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/rain-alert.yml/dispatches" --input -
+      - name: Preparar o proximo ciclo
+        if: ${{ !cancelled() && steps.timer.outcome == 'success' }}
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/radar-clock.yml/dispatches" -f ref=main
