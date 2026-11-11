@@ -1,0 +1,64 @@
+name: Radar SBPA - Boletim climatico ENOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - enso_alert.py
+      - .github/workflows/enso-alert.yml
+  schedule:
+    - cron: '41 15 * * *'
+  workflow_dispatch:
+    inputs:
+      preview:
+        description: 'Consultar e gerar relatorio sem enviar notificacao'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: radar-poa-production
+  queue: max
+  cancel-in-progress: false
+
+jobs:
+  bulletin:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: Consultar boletim oficial ENOS
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          PREVIEW: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.preview) }}
+        run: |
+          if [ "$PREVIEW" = 'true' ]; then
+            python enso_alert.py --preview
+          else
+            python enso_alert.py
+          fi
+      - name: Persistir memoria do boletim
+        if: always()
+        run: |
+          if [ ! -f data/enso_notification_state.json ]; then exit 0; fi
+          git add data/enso_notification_state.json
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name=github-actions -c user.email=github-actions@github.com commit -m 'Atualiza memoria do boletim ENOS'
+          git pull --rebase origin main
+          git push origin HEAD:main
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: boletim-enso-${{ github.run_id }}
+          path: reports/enso/
+          if-no-files-found: ignore
