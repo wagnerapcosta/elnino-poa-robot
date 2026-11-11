@@ -31,10 +31,21 @@ jobs:
       - name: Confirmar espera do temporizador
         id: timer
         run: |
-          timer=$(curl --fail --silent --show-error --max-time 15 \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/environments/radar-sbpa-clock" | \
-            jq -er '.protection_rules[] | select(.type == "wait_timer") | .wait_timer')
-          created=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)
+          read_github_value() {
+            local delay result
+            for delay in 0 2 5; do
+              sleep "$delay"
+              if result=$(gh api "$@"); then
+                printf '%s\n' "$result"
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          timer=$(read_github_value "repos/$GITHUB_REPOSITORY/environments/radar-sbpa-clock" \
+            --jq '.protection_rules[] | select(.type == "wait_timer") | .wait_timer')
+          created=$(read_github_value "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)
           elapsed=$(( $(date -u +%s) - $(date -u -d "$created" +%s) ))
           if [[ "$timer" != 40 || "$elapsed" -lt 2340 ]]; then
             echo 'Temporizador de 40 minutos ausente ou espera não observada. Ciclo interrompido.'
