@@ -873,7 +873,7 @@ def create_forecast_chart(forecast: dict, mode: str) -> str:
 # NOTIFICAÇÃO
 # ============================================================
 
-def notify_ntfy(title: str, message: str, tactical_level: str):
+def notify_ntfy(title: str, message: str, tactical_level: str, *, source_url=None):
     topic = os.getenv("NTFY_TOPIC")
 
     if not topic:
@@ -901,12 +901,13 @@ def notify_ntfy(title: str, message: str, tactical_level: str):
         "Tags": tags,
     }
 
-    if 'defesa civil' in title.casefold():
-        source_url = 'https://prefeitura.poa.br/poaclima/'
-    elif 'cptec' in title.casefold():
-        source_url = 'https://www.cptec.inpe.br/'
-    else:
-        source_url = 'https://open-meteo.com/'
+    if source_url is None:
+        if 'defesa civil' in title.casefold():
+            source_url = 'https://prefeitura.poa.br/poaclima/'
+        elif 'cptec' in title.casefold():
+            source_url = 'https://www.cptec.inpe.br/'
+        else:
+            source_url = 'https://open-meteo.com/'
     headers.update(Click=source_url, Actions='view, Abrir fonte, ' + source_url)
 
     response = requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=30)
@@ -983,6 +984,12 @@ def main(notification_state=None):
     attention = comparison["cptec_attention"]
     message = alert_text(alert) + "\n" + official_summary(official, comparison)
     mobile_rain = forecast_body(forecast_analysis, action='Acompanhar a previsão e as condições locais.')
+    if alert['triggered'] is True:
+        cptec_check = {
+            'concordância indicativa acima do limiar': 'sinal também acima do limiar',
+            'divergência no sinal de 20 mm/12h': 'sinal diferente da previsão local',
+        }.get(comparison['state'], 'comparação inconclusiva')
+        mobile_rain += '\nChecagem regional CPTEC/INPE · ' + cptec_check + '.'
     if attention:
         from mobile_layout import integer
         mobile_rain += '\nChecagem CPTEC: ' + integer(min(official['cptec']['alignment_start_mm'], official['cptec']['alignment_end_mm'])) + ' mm/12h (previsão complementar).'
