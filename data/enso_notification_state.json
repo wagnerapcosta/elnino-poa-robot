@@ -1,0 +1,16 @@
+{
+  "collection": {
+    "failed": false
+  },
+  "events": {
+    "enso": {
+      "active": true,
+      "last_sent": "2026-11-12T17:01:11.806320-03:00",
+      "signature": {
+        "issued": "2026-11-12",
+        "status": "El Niño ativo"
+      }
+    }
+  },
+  "schema": 1
+}
