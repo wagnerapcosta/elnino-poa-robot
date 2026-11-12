@@ -59,3 +59,24 @@ jobs:
       - name: Preparar o proximo ciclo
         if: ${{ !cancelled() && steps.timer.outcome == 'success' }}
         run: gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/radar-clock.yml/dispatches" -f ref=main
+      - name: Acionar boletim ENOS de reserva
+        if: ${{ !cancelled() && steps.timer.outcome == 'success' }}
+        run: |
+          # Preserve the daily 15:41 UTC schedule and only cover a missing or failed production run.
+          now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          due="${now%%T*}T15:41:00Z"
+          if [[ "$now" < "$due" ]]; then
+            echo 'A janela diária do ENOS ainda não abriu.'
+            exit 0
+          fi
+
+          endpoint="repos/$GITHUB_REPOSITORY/actions/workflows/enso-alert.yml"
+          covered=$(gh api --method GET "$endpoint/runs" -f branch=main -f "created=>=$due" \
+            --jq '[.workflow_runs[] | select(.display_title == "ENOS | produção" and (.status != "completed" or .conclusion == "success"))] | length')
+          if [[ "$covered" != 0 ]]; then
+            echo 'Já existe execução ENOS de produção concluída com sucesso ou em andamento hoje.'
+            exit 0
+          fi
+
+          printf '%s\n' '{"ref":"main","inputs":{"preview":false}}' | \
+            gh api --method POST "$endpoint/dispatches" --input -
