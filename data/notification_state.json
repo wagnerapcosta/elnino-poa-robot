@@ -1,8 +1,16 @@
 {
   "collection": {
-    "failed": false
+    "failed": true,
+    "since": "2026-11-12T18:04:39.139133-03:00"
   },
   "events": {
+    "collection_failure": {
+      "active": true,
+      "last_sent": "2026-11-12T18:04:39.139133-03:00",
+      "signature": {
+        "kind": "transport"
+      }
+    },
     "general": {
       "active": true,
       "last_sent": "2026-11-12T14:40:52.865056-03:00",
