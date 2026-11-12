@@ -5,13 +5,13 @@
   "events": {
     "general": {
       "active": true,
-      "last_sent": "2026-11-11T14:19:21.533859-03:00",
+      "last_sent": "2026-11-12T14:40:52.865056-03:00",
       "signature": {
         "level": "amarelo",
         "metrics": {
-          "gust": 52.6,
-          "p24": 13.0,
-          "p72": 13.3
+          "gust": 56.5,
+          "p24": 16.5,
+          "p72": 18.9
         },
         "rain_only": false
       }
