@@ -1,4 +1,5 @@
 name: Radar SBPA - Boletim climatico ENOS
+run-name: ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.preview)) && 'ENOS | prévia' || 'ENOS | produção' }}
 
 on:
   push:

@@ -6,6 +6,8 @@ Robô pessoal de apoio ao monitoramento de SBPA, com relatórios diário/semanal
 
 ### Dois tipos de notificação
 
+O boletim ENOS tem agendamento diário às 12h41 de Brasília. A partir desse horário, o temporizador de reserva do GitHub Actions verifica se existe execução de produção bem-sucedida ou em andamento. Se faltar uma execução, aciona o boletim pelo próprio GitHub. A memória de envio evita repetir a mesma edição e situação oficial.
+
 - **ENOS · boletim climático.** Consulta diária ao [boletim NOAA/CPC](https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml), com data de emissão e situação oficial. Quando a tabela da mesma edição está disponível, mostra a probabilidade de El Niño forte ou muito forte pelo RONI para o trimestre que começa no mês seguinte à emissão. O aviso tem prioridade informativa e inclui o [painel de boletins CPTEC/INPE](https://clima2.cptec.inpe.br/boletins/pt) para contexto no Brasil. A primeira edição válida e cada nova edição geram um aviso, assim como mudança do estado oficial na mesma edição. Boletins anteriores à última edição enviada, com data futura ou com mais de 45 dias ficam fora dos envios. O fluxo tem memória própria e roda em modo de prévia na publicação. A opção manual de prévia vem habilitada.
 - **Chuva · previsão local SBPA.** O limiar inclusivo de 20 mm em 12 horas, a janela BRT, a fonte principal Open-Meteo e a deduplicação seguem as regras abaixo. O aviso quantitativo resume a checagem regional do CPTEC como concordância indicativa, divergência ou comparação inconclusiva. A Defesa Civil POA e os avisos de coleta integram a frente local.
 
