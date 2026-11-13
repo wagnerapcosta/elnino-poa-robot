@@ -1,6 +1,6 @@
 import unittest
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from rain_alert import rain_alert, alert_text, TZ
 
 NOW = datetime(2026, 11, 4, 18, 17, tzinfo=TZ)
@@ -18,6 +18,13 @@ def payload(total=21):
 
 
 class RainTests(unittest.TestCase):
+    def test_rejects_conflicting_utc_offset(self):
+        p = payload(20)
+        p["utc_offset_seconds"] = -10800
+        self.assertTrue(rain_alert(p, NOW)["triggered"])
+        p["utc_offset_seconds"] = 0
+        self.assertIsNone(rain_alert(p, NOW)["triggered"])
+
     def test_inclusive_threshold(self):
         for value, expected in [(0, False), (19.99, False), (20, True), (20.01, True), (21, True)]:
             with self.subTest(value=value):
@@ -95,15 +102,36 @@ class RainTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Falha no envio"):
                 robot.main(notification_state=robot.NotificationState())
 
-    def test_unavailable_sends_failure_notice_not_rain_alert(self):
+    def test_unavailable_reports_transport_cause_without_sending(self):
         import robot
         f = robot.classify_forecast({}, NOW)
-        with patch.object(robot, "collect_official_data", return_value={}), patch.object(robot, "Path"), patch.dict("os.environ", {"RUN_MODE": "rain_alert"}), patch.object(robot, "ensure_dirs"), patch.object(robot, "save_report"), patch.object(robot, "collect_open_meteo", return_value={"status": "error", "json": {}}), patch.object(robot, "classify_forecast", return_value=f), patch.object(robot, "notify_ntfy", return_value=True) as notify:
-            with self.assertRaisesRegex(RuntimeError, "indisponível"):
+        with patch.object(robot, "collect_official_data", return_value={}), patch.object(robot, "Path"), patch.dict("os.environ", {"RUN_MODE": "rain_alert"}), patch.object(robot, "ensure_dirs"), patch.object(robot, "save_report"), patch.object(robot, "collect_open_meteo", return_value={"status": "error", "json": {}, "error": "Open-Meteo HTTP 503"}), patch.object(robot, "classify_forecast", return_value=f), patch.object(robot, "notify_ntfy", return_value=True) as notify:
+            with self.assertRaisesRegex(RuntimeError, "Open-Meteo HTTP 503"):
                 robot.main(notification_state=robot.NotificationState())
-            self.assertEqual(notify.call_count,1)
-            self.assertIn("FALHA",notify.call_args.args[0])
-            self.assertIn("NÃO SIGNIFICAM AUSÊNCIA DE RISCO",notify.call_args.args[1])
+            notify.assert_not_called()
+
+    def test_transport_retry_and_permanent_http_failure(self):
+        import robot
+        response = Mock()
+        response.json.return_value = payload()
+        with patch.object(robot.requests, "get", side_effect=[robot.requests.Timeout(), response]) as get, patch.object(robot, "sleep") as wait:
+            self.assertEqual(robot.collect_open_meteo()["status"], "ok")
+            self.assertEqual(get.call_count, 2)
+            wait.assert_called_once_with(2)
+        rejected = robot.requests.Response()
+        rejected.status_code = 400
+        with patch.object(robot.requests, "get", return_value=rejected) as get, patch.object(robot, "sleep") as wait:
+            self.assertEqual(robot.collect_open_meteo()["error"], "Open-Meteo HTTP 400")
+            get.assert_called_once()
+            wait.assert_not_called()
+
+    def test_production_recovery_ignores_legacy_failure_marker(self):
+        import robot
+        state = robot.NotificationState()
+        state.data["collection"] = {"failed": True, "since": NOW.isoformat()}
+        with patch.object(robot, "collect_official_data", return_value={}), patch.object(robot, "Path"), patch.dict("os.environ", {"RUN_MODE": "rain_alert"}), patch.object(robot, "ensure_dirs"), patch.object(robot, "save_report"), patch.object(robot, "now_brt", return_value=NOW), patch.object(robot, "collect_open_meteo", return_value={"status": "ok", "json": payload(0)}), patch.object(robot, "notify_ntfy", return_value=True) as notify:
+            robot.main(notification_state=state)
+            notify.assert_not_called()
 
 
 if __name__ == "__main__":

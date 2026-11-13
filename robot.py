@@ -1,6 +1,7 @@
 import os
 import re
 import json
+from time import sleep
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -310,28 +311,33 @@ def collect_open_meteo() -> dict:
         "&precipitation_unit=mm&wind_speed_unit=kmh"
     )
 
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=30)
-        response.raise_for_status()
-
-        return {
-            "source": "Open-Meteo POA Forecast",
-            "url": url,
-            "status": "ok",
-            "json": response.json(),
-            "error": None,
-            "collected_at": now_brt().isoformat(),
-        }
-
-    except Exception as exc:
-        return {
-            "source": "Open-Meteo POA Forecast",
-            "url": url,
-            "status": "error",
-            "json": {},
-            "error": str(exc),
-            "collected_at": now_brt().isoformat(),
-        }
+    result = {"source": "Open-Meteo POA Forecast", "url": url, "status": "error",
+              "json": {}, "error": None}
+    for delay in (0, 2, 5):
+        if delay:
+            sleep(delay)
+        try:
+            response = requests.get(url, headers=HEADERS, timeout=(5, 12))
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, dict) or payload.get("error"):
+                raise ValueError("Formato da previsão principal inválido")
+        except requests.HTTPError as exc:
+            status = exc.response.status_code
+            result["error"] = f"Open-Meteo HTTP {status}"
+            if status not in (408, 429) and not 500 <= status < 600:
+                break
+        except (requests.Timeout, requests.ConnectionError, ValueError) as exc:
+            result["error"] = f"{type(exc).__name__}: {exc}"
+        except requests.RequestException as exc:
+            result["error"] = f"{type(exc).__name__}: {exc}"
+            break
+        else:
+            result.update(status="ok", json=payload, error=None)
+            break
+        print(f"Open-Meteo: tentativa de coleta falhou ({result['error']}).")
+    result["collected_at"] = now_brt().isoformat()
+    return result
 
 
 def collect_aviation_weather() -> dict:
@@ -965,6 +971,12 @@ def main(notification_state=None):
         # An HTTP success with a malformed JSON structure is also a collection failure.
         open_meteo.update(status="error", error="Formato da previsão principal inválido", json={})
         forecast_analysis = classify_forecast({}, now=reference_time)
+    alert = forecast_analysis["rain_12h"]
+    if open_meteo.get("status") != "ok":
+        alert["error"] = open_meteo.get("error") or "Falha ao obter resposta do Open-Meteo"
+    if forecast_analysis["data_status"] != "ok":
+        detail = alert["error"] or "Dados diários inválidos ou incompletos"
+        print(f"::warning::Open-Meteo: {detail}. Conferir relatório de checagem.")
     print("Extraindo dados estruturados CPTEC, INMET e POA Clima...")
     official = collect_official_data(now=reference_time)
     for product in official.values():
@@ -976,11 +988,12 @@ def main(notification_state=None):
     snapshot_dir.mkdir(parents=True, exist_ok=True)
     (snapshot_dir / reference_time.strftime("checagem_oficial_%Y%m%d_%H%M%S.json")).write_text(
         json.dumps(dict(collected_at=reference_time.isoformat(), version=ROBOT_VERSION,
-                        open_meteo=forecast_analysis["rain_12h"], official=official, comparison=comparison),
+                        open_meteo=alert, open_meteo_collection={
+                            "status": open_meteo["status"], "error": open_meteo.get("error"),
+                            "data_status": forecast_analysis["data_status"],
+                        }, official=official, comparison=comparison),
                    ensure_ascii=False, indent=2), encoding="utf-8")
-    outcomes = state.collection(open_meteo, forecast_analysis, reference_time, notify_ntfy)
-    outcomes += state.municipal(official.get("poa_alerts", {}), reference_time, notify_ntfy)
-    alert = forecast_analysis["rain_12h"]
+    outcomes = state.municipal(official.get("poa_alerts", {}), reference_time, notify_ntfy)
     attention = comparison["cptec_attention"]
     message = alert_text(alert) + "\n" + official_summary(official, comparison)
     mobile_rain = forecast_body(forecast_analysis, action='Acompanhar a previsão e as condições locais.')
@@ -992,7 +1005,13 @@ def main(notification_state=None):
         mobile_rain += '\nChecagem regional CPTEC/INPE · ' + cptec_check + '.'
     if attention:
         from mobile_layout import integer
-        mobile_rain += '\nChecagem CPTEC: ' + integer(min(official['cptec']['alignment_start_mm'], official['cptec']['alignment_end_mm'])) + ' mm/12h (previsão complementar).'
+        cptec = official["cptec"]
+        total = integer(min(cptec["alignment_start_mm"], cptec["alignment_end_mm"]))
+        if alert["status"] != "ok":
+            mobile_rain = (f"Chuva prevista: pelo menos {total} mm em 12h nas duas hipóteses de horário.\n"
+                           "Fonte: CPTEC/INPE · Porto Alegre (previsão regional).")
+        else:
+            mobile_rain += f"\nChecagem CPTEC: {total} mm/12h (previsão complementar)."
     rain_notice = dict(title="SBPA | ALERTA chuva >=20 mm/12h" if alert["triggered"] is True
                        else "SBPA | ATENCAO CPTEC", body=mobile_rain,
                        level="laranja" if alert["triggered"] is True else "amarelo")
@@ -1045,9 +1064,6 @@ def main(notification_state=None):
     tactical_level = highest_level(tactical_levels)
     strategic_level = "não classificado"
 
-    if reliability_info.get("reliability") == "insuficiente" and level_order(tactical_level) < level_order("amarelo"):
-        tactical_level = "amarelo"
-
     tactical_drivers = build_tactical_drivers(forecast_analysis, web_results)
     if comparison["cptec_attention"]:
         tactical_level = highest_level([tactical_level, "amarelo"])
@@ -1089,10 +1105,10 @@ def main(notification_state=None):
     )
 
     # A yellow summary is redundant only when rain is its sole trigger. Other
-    # tactical sources, wind/daily rain thresholds or poor reliability are independent.
+    # tactical sources and wind/daily rain thresholds are independent.
     rain_only = (alert['triggered'] is True and forecast_analysis['general_level'] == 'verde'
                  and all(level_order(level) == 0 for level in tactical_levels[1:])
-                 and reliability_info.get('reliability') != 'insuficiente' and not attention)
+                 and not attention)
     general_notice = dict(title="SBPA | Radar El Nino POA",
                           body=mobile_summary, level=tactical_level, rain_only=rain_only)
     general_outcomes = state.general(forecast_analysis, general_notice, reference_time, notify_ntfy)
