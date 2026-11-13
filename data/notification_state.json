@@ -1,21 +1,21 @@
 {
   "collection": {
-    "failed": true,
+    "failed": false,
     "since": "2026-11-13T02:06:48.238660-03:00"
   },
   "events": {
     "collection_failure": {
-      "active": true,
+      "active": false,
       "last_sent": "2026-11-13T02:06:48.238660-03:00",
       "signature": {
         "kind": "transport"
       }
     },
     "collection_recovery": {
-      "active": false,
-      "last_sent": "2026-11-12T22:58:34.262421-03:00",
+      "active": true,
+      "last_sent": "2026-11-13T03:27:05.904110-03:00",
       "signature": {
-        "episode": "2026-11-12T22:06:07.627056-03:00"
+        "episode": "2026-11-13T02:06:48.238660-03:00"
       }
     },
     "general": {
