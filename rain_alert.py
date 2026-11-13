@@ -24,7 +24,9 @@ def rain_alert(payload, now=None):
         if not isinstance(payload, dict):
             raise ValueError("Resposta da previsão inválida")
         if payload.get("timezone") != "America/Sao_Paulo":
-            raise ValueError("Fuso da previsão inválido")
+            raise ValueError(f"Fuso da previsão inválido: {str(payload.get('timezone'))[:64]!r}")
+        if "utc_offset_seconds" in payload and payload["utc_offset_seconds"] != int(start.utcoffset().total_seconds()):
+            raise ValueError("Deslocamento UTC incompatível com o horário de SBPA")
         if payload.get("hourly_units", {}).get("precipitation") != "mm":
             raise ValueError("Unidade de precipitação inválida")
         # API returns the model grid cell, not the airport's exact coordinates.
