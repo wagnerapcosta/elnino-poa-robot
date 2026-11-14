@@ -31,6 +31,21 @@
         "rain_only": false
       }
     },
+    "municipal:1": {
+      "active": true,
+      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "signature": {
+        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
+        "end": "2026-11-15T15:00:00+00:00",
+        "level": "attention_notice",
+        "region": "humaitá/navegantes",
+        "start": "2026-11-15T03:00:00+00:00",
+        "types": [
+          "tempestade – granizo",
+          "tempestade – vendaval"
+        ]
+      }
+    },
     "municipal:13": {
       "active": false,
       "last_sent": "2026-11-06T14:59:59.434152-03:00",
@@ -42,6 +57,96 @@
         "start": "2026-11-06T17:40:00+00:00",
         "types": [
           "nível de rio"
+        ]
+      }
+    },
+    "municipal:14": {
+      "active": true,
+      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "signature": {
+        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
+        "end": "2026-11-15T15:00:00+00:00",
+        "level": "attention_notice",
+        "region": "eixo baltazar",
+        "start": "2026-11-15T03:00:00+00:00",
+        "types": [
+          "tempestade – granizo",
+          "tempestade – vendaval"
+        ]
+      }
+    },
+    "municipal:16": {
+      "active": true,
+      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "signature": {
+        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
+        "end": "2026-11-15T15:00:00+00:00",
+        "level": "attention_notice",
+        "region": "centro",
+        "start": "2026-11-15T03:00:00+00:00",
+        "types": [
+          "tempestade – granizo",
+          "tempestade – vendaval"
+        ]
+      }
+    },
+    "municipal:17": {
+      "active": true,
+      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "signature": {
+        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
+        "end": "2026-11-15T15:00:00+00:00",
+        "level": "attention_notice",
+        "region": "ilhas",
+        "start": "2026-11-15T03:00:00+00:00",
+        "types": [
+          "tempestade – granizo",
+          "tempestade – vendaval"
+        ]
+      }
+    },
+    "municipal:2": {
+      "active": true,
+      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "signature": {
+        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
+        "end": "2026-11-15T15:00:00+00:00",
+        "level": "attention_notice",
+        "region": "noroeste",
+        "start": "2026-11-15T03:00:00+00:00",
+        "types": [
+          "tempestade – granizo",
+          "tempestade – vendaval"
+        ]
+      }
+    },
+    "municipal:3": {
+      "active": true,
+      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "signature": {
+        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
+        "end": "2026-11-15T15:00:00+00:00",
+        "level": "attention_notice",
+        "region": "leste",
+        "start": "2026-11-15T03:00:00+00:00",
+        "types": [
+          "tempestade – granizo",
+          "tempestade – vendaval"
+        ]
+      }
+    },
+    "municipal:5": {
+      "active": true,
+      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "signature": {
+        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
+        "end": "2026-11-15T15:00:00+00:00",
+        "level": "attention_notice",
+        "region": "norte",
+        "start": "2026-11-15T03:00:00+00:00",
+        "types": [
+          "tempestade – granizo",
+          "tempestade – vendaval"
         ]
       }
     }
