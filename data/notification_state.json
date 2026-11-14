@@ -20,20 +20,20 @@
     },
     "general": {
       "active": true,
-      "last_sent": "2026-11-13T14:18:11.920399-03:00",
+      "last_sent": "2026-11-14T12:55:30.745676-03:00",
       "signature": {
         "level": "amarelo",
         "metrics": {
-          "gust": 51.8,
-          "p24": 21.3,
-          "p72": 29.1
+          "gust": 52.6,
+          "p24": 39.5,
+          "p72": 43.7
         },
         "rain_only": false
       }
     },
     "municipal:1": {
       "active": true,
-      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "last_sent": "2026-11-14T12:55:30.745676-03:00",
       "signature": {
         "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
         "end": "2026-11-15T15:00:00+00:00",
@@ -41,8 +41,7 @@
         "region": "humaitá/navegantes",
         "start": "2026-11-15T03:00:00+00:00",
         "types": [
-          "tempestade – granizo",
-          "tempestade – vendaval"
+          "tempestade – granizo"
         ]
       }
     },
@@ -62,7 +61,7 @@
     },
     "municipal:14": {
       "active": true,
-      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "last_sent": "2026-11-14T12:55:30.745676-03:00",
       "signature": {
         "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
         "end": "2026-11-15T15:00:00+00:00",
@@ -70,14 +69,13 @@
         "region": "eixo baltazar",
         "start": "2026-11-15T03:00:00+00:00",
         "types": [
-          "tempestade – granizo",
-          "tempestade – vendaval"
+          "tempestade – granizo"
         ]
       }
     },
     "municipal:16": {
       "active": true,
-      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "last_sent": "2026-11-14T12:55:30.745676-03:00",
       "signature": {
         "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
         "end": "2026-11-15T15:00:00+00:00",
@@ -85,14 +83,13 @@
         "region": "centro",
         "start": "2026-11-15T03:00:00+00:00",
         "types": [
-          "tempestade – granizo",
-          "tempestade – vendaval"
+          "tempestade – granizo"
         ]
       }
     },
     "municipal:17": {
       "active": true,
-      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "last_sent": "2026-11-14T12:55:30.745676-03:00",
       "signature": {
         "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
         "end": "2026-11-15T15:00:00+00:00",
@@ -100,14 +97,13 @@
         "region": "ilhas",
         "start": "2026-11-15T03:00:00+00:00",
         "types": [
-          "tempestade – granizo",
-          "tempestade – vendaval"
+          "tempestade – granizo"
         ]
       }
     },
     "municipal:2": {
       "active": true,
-      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "last_sent": "2026-11-14T12:55:30.745676-03:00",
       "signature": {
         "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
         "end": "2026-11-15T15:00:00+00:00",
@@ -115,14 +111,13 @@
         "region": "noroeste",
         "start": "2026-11-15T03:00:00+00:00",
         "types": [
-          "tempestade – granizo",
-          "tempestade – vendaval"
+          "tempestade – granizo"
         ]
       }
     },
     "municipal:3": {
       "active": true,
-      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "last_sent": "2026-11-14T12:55:30.745676-03:00",
       "signature": {
         "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
         "end": "2026-11-15T15:00:00+00:00",
@@ -130,14 +125,13 @@
         "region": "leste",
         "start": "2026-11-15T03:00:00+00:00",
         "types": [
-          "tempestade – granizo",
-          "tempestade – vendaval"
+          "tempestade – granizo"
         ]
       }
     },
     "municipal:5": {
       "active": true,
-      "last_sent": "2026-11-14T12:15:53.822157-03:00",
+      "last_sent": "2026-11-14T12:55:30.745676-03:00",
       "signature": {
         "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
         "end": "2026-11-15T15:00:00+00:00",
@@ -145,8 +139,7 @@
         "region": "norte",
         "start": "2026-11-15T03:00:00+00:00",
         "types": [
-          "tempestade – granizo",
-          "tempestade – vendaval"
+          "tempestade – granizo"
         ]
       }
     }
