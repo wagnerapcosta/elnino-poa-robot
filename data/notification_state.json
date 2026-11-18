@@ -32,15 +32,16 @@
       }
     },
     "municipal:1": {
-      "active": false,
-      "last_sent": "2026-11-14T12:55:30.745676-03:00",
+      "active": true,
+      "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
-        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
-        "end": "2026-11-15T15:00:00+00:00",
+        "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
+        "end": "2026-11-19T06:00:00+00:00",
         "level": "attention_notice",
         "region": "humaitá/navegantes",
-        "start": "2026-11-15T03:00:00+00:00",
+        "start": "2026-11-19T00:00:00+00:00",
         "types": [
+          "tempestade – chuvas intensas",
           "tempestade – granizo"
         ]
       }
@@ -60,85 +61,91 @@
       }
     },
     "municipal:14": {
-      "active": false,
-      "last_sent": "2026-11-14T12:55:30.745676-03:00",
+      "active": true,
+      "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
-        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
-        "end": "2026-11-15T15:00:00+00:00",
+        "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
+        "end": "2026-11-19T06:00:00+00:00",
         "level": "attention_notice",
         "region": "eixo baltazar",
-        "start": "2026-11-15T03:00:00+00:00",
+        "start": "2026-11-19T00:00:00+00:00",
         "types": [
+          "tempestade – chuvas intensas",
           "tempestade – granizo"
         ]
       }
     },
     "municipal:16": {
-      "active": false,
-      "last_sent": "2026-11-14T12:55:30.745676-03:00",
+      "active": true,
+      "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
-        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
-        "end": "2026-11-15T15:00:00+00:00",
+        "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
+        "end": "2026-11-19T06:00:00+00:00",
         "level": "attention_notice",
         "region": "centro",
-        "start": "2026-11-15T03:00:00+00:00",
+        "start": "2026-11-19T00:00:00+00:00",
         "types": [
+          "tempestade – chuvas intensas",
           "tempestade – granizo"
         ]
       }
     },
     "municipal:17": {
-      "active": false,
-      "last_sent": "2026-11-14T12:55:30.745676-03:00",
+      "active": true,
+      "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
-        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
-        "end": "2026-11-15T15:00:00+00:00",
+        "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
+        "end": "2026-11-19T06:00:00+00:00",
         "level": "attention_notice",
         "region": "ilhas",
-        "start": "2026-11-15T03:00:00+00:00",
+        "start": "2026-11-19T00:00:00+00:00",
         "types": [
+          "tempestade – chuvas intensas",
           "tempestade – granizo"
         ]
       }
     },
     "municipal:2": {
-      "active": false,
-      "last_sent": "2026-11-14T12:55:30.745676-03:00",
+      "active": true,
+      "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
-        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
-        "end": "2026-11-15T15:00:00+00:00",
+        "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
+        "end": "2026-11-19T06:00:00+00:00",
         "level": "attention_notice",
         "region": "noroeste",
-        "start": "2026-11-15T03:00:00+00:00",
+        "start": "2026-11-19T00:00:00+00:00",
         "types": [
+          "tempestade – chuvas intensas",
           "tempestade – granizo"
         ]
       }
     },
     "municipal:3": {
-      "active": false,
-      "last_sent": "2026-11-14T12:55:30.745676-03:00",
+      "active": true,
+      "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
-        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
-        "end": "2026-11-15T15:00:00+00:00",
+        "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
+        "end": "2026-11-19T06:00:00+00:00",
         "level": "attention_notice",
         "region": "leste",
-        "start": "2026-11-15T03:00:00+00:00",
+        "start": "2026-11-19T00:00:00+00:00",
         "types": [
+          "tempestade – chuvas intensas",
           "tempestade – granizo"
         ]
       }
     },
     "municipal:5": {
-      "active": false,
-      "last_sent": "2026-11-14T12:55:30.745676-03:00",
+      "active": true,
+      "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
-        "description_sha256": "2b736faa1e6d86ece9c1dc796d9c9017a048022e9d0610fa6930587312be5bd4",
-        "end": "2026-11-15T15:00:00+00:00",
+        "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
+        "end": "2026-11-19T06:00:00+00:00",
         "level": "attention_notice",
         "region": "norte",
-        "start": "2026-11-15T03:00:00+00:00",
+        "start": "2026-11-19T00:00:00+00:00",
         "types": [
+          "tempestade – chuvas intensas",
           "tempestade – granizo"
         ]
       }
