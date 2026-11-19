@@ -32,7 +32,7 @@
       }
     },
     "municipal:1": {
-      "active": true,
+      "active": false,
       "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
         "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
@@ -61,7 +61,7 @@
       }
     },
     "municipal:14": {
-      "active": true,
+      "active": false,
       "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
         "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
@@ -76,7 +76,7 @@
       }
     },
     "municipal:16": {
-      "active": true,
+      "active": false,
       "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
         "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
@@ -91,7 +91,7 @@
       }
     },
     "municipal:17": {
-      "active": true,
+      "active": false,
       "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
         "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
@@ -106,7 +106,7 @@
       }
     },
     "municipal:2": {
-      "active": true,
+      "active": false,
       "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
         "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
@@ -121,7 +121,7 @@
       }
     },
     "municipal:3": {
-      "active": true,
+      "active": false,
       "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
         "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
@@ -136,7 +136,7 @@
       }
     },
     "municipal:5": {
-      "active": true,
+      "active": false,
       "last_sent": "2026-11-18T18:05:53.240968-03:00",
       "signature": {
         "description_sha256": "d574c776246bab9722d487ad8bcf7f7e3db2ec4df6c7a810a5164d87853bf9f0",
