@@ -149,6 +149,17 @@
           "tempestade – granizo"
         ]
       }
+    },
+    "rain": {
+      "active": true,
+      "last_sent": "2026-11-19T04:08:21.343427-03:00",
+      "signature": {
+        "kind": "primary",
+        "level": "laranja",
+        "metrics": {
+          "rain": 24.4
+        }
+      }
     }
   },
   "schema": 1
