@@ -151,13 +151,13 @@
       }
     },
     "rain": {
-      "active": false,
-      "last_sent": "2026-11-20T05:35:19.826560-03:00",
+      "active": true,
+      "last_sent": "2026-11-20T11:36:59.634446-03:00",
       "signature": {
         "kind": "primary",
         "level": "laranja",
         "metrics": {
-          "rain": 24.0
+          "rain": 26.4
         }
       }
     }
