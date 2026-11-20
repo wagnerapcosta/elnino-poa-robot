@@ -151,7 +151,7 @@
       }
     },
     "rain": {
-      "active": true,
+      "active": false,
       "last_sent": "2026-11-20T05:35:19.826560-03:00",
       "signature": {
         "kind": "primary",
