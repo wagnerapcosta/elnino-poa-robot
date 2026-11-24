@@ -5,9 +5,14 @@
   "events": {
     "enso": {
       "active": true,
-      "last_sent": "2026-11-12T17:01:11.806320-03:00",
+      "last_sent": "2026-11-24T12:41:56.033783-03:00",
       "signature": {
         "issued": "2026-11-12",
+        "outlook": {
+          "season": "DJF",
+          "season_start_year": 2026,
+          "strong_pct": 98
+        },
         "status": "El Niño ativo"
       }
     }
