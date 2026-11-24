@@ -57,7 +57,7 @@ def parse_outlook(raw, issued):
     expected_edition = f'Issued {MONTHS[issued.month - 1]} {issued.year}'
     if not any(h.get_text(' ', strip=True) == expected_edition for h in soup.find_all('h2')):
         raise ValueError('Probabilidades de edição diferente do boletim')
-    table = soup.find('table', id='probabilities-table')
+    table = soup.find('table', id='probabilities-table') or soup.find('table', id='enso-archives-table')
     if table is None:
         raise ValueError('Tabela de probabilidades ausente')
     rows = [[cell.get_text(' ', strip=True) for cell in row.find_all(['th', 'td'], recursive=False)]
@@ -90,8 +90,9 @@ def collect(now):
     bulletin['outlook_url'] = outlook_url
     try:
         bulletin['outlook'] = parse_outlook(fetch(outlook_url), issued)
-    except (requests.RequestException, ValueError):
+    except (requests.RequestException, ValueError) as exc:
         bulletin['outlook'] = None
+        bulletin['outlook_error'] = type(exc).__name__ + ': ' + str(exc)
     return bulletin
 
 
@@ -112,9 +113,16 @@ def notice(bulletin):
 
 def publish(bulletin, state, now, notify=notify_ntfy):
     signature = {key: bulletin[key] for key in ('issued', 'status')}
+    signature['outlook'] = bulletin.get('outlook')
+    def relevant(old, new):
+        if new['issued'] < old['issued']:
+            return False
+        if new['issued'] != old['issued'] or new['status'] != old['status']:
+            return True
+        return new['outlook'] is not None and new['outlook'] != old.get('outlook')
     return state.send('enso', signature, notice(bulletin), now,
                       lambda title, body, level: notify(title, body, level, source_url=NOAA_BULLETIN),
-                      relevance=lambda old, new: new['issued'] >= old['issued'] and new != old)
+                      relevance=relevant)
 
 
 def main():
