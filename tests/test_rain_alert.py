@@ -117,7 +117,14 @@ class RainTests(unittest.TestCase):
         with patch.object(robot.requests, "get", side_effect=[robot.requests.Timeout(), response]) as get, patch.object(robot, "sleep") as wait:
             self.assertEqual(robot.collect_open_meteo()["status"], "ok")
             self.assertEqual(get.call_count, 2)
+            self.assertEqual(get.call_args.kwargs['timeout'], (10, 30))
             wait.assert_called_once_with(2)
+        with patch.object(robot.requests, "get", side_effect=robot.requests.ReadTimeout('fonte lenta')) as get, patch.object(robot, "sleep"):
+            result = robot.collect_open_meteo()
+            self.assertEqual(result['status'], 'error')
+            self.assertEqual(result['json'], {})
+            self.assertIn('ReadTimeout', result['error'])
+            self.assertEqual(get.call_count, 3)
         rejected = robot.requests.Response()
         rejected.status_code = 400
         with patch.object(robot.requests, "get", return_value=rejected) as get, patch.object(robot, "sleep") as wait:

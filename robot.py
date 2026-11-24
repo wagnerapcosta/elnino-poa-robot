@@ -317,7 +317,7 @@ def collect_open_meteo() -> dict:
         if delay:
             sleep(delay)
         try:
-            response = requests.get(url, headers=HEADERS, timeout=(5, 12))
+            response = requests.get(url, headers=HEADERS, timeout=(10, 30))
             response.raise_for_status()
             payload = response.json()
             if not isinstance(payload, dict) or payload.get("error"):

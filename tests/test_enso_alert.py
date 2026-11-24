@@ -57,3 +57,20 @@ class EnsoAlertTests(unittest.TestCase):
             self.assertEqual(enso.publish(revised, NotificationState(path), now, sender)['status'], 'sent')
         self.assertEqual(sender.call_count, 3)
         self.assertEqual(sender.call_args.kwargs['source_url'], enso.NOAA_BULLETIN)
+
+    def test_new_archive_table_and_recovered_probability_are_not_lost(self):
+        parsed = enso.parse_outlook(outlook().replace('probabilities-table', 'enso-archives-table'), date(2026, 10, 8))
+        now = datetime(2026, 11, 11, 12, tzinfo=TZ)
+        issue = {'issued': '2026-10-08', 'status': 'El Niño ativo'}
+        sender = Mock(return_value=True)
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / 'enso.json'
+            state = NotificationState(path)
+            state.data['events']['enso'] = dict(active=True, signature=issue)
+            state.save()
+            updated = dict(issue, outlook=parsed)
+            self.assertEqual(enso.publish(updated, NotificationState(path), now, sender)['status'], 'sent')
+            self.assertEqual(enso.publish(updated, NotificationState(path), now, sender)['status'], 'suppressed')
+            self.assertEqual(enso.publish(issue, NotificationState(path), now, sender)['status'], 'suppressed')
+            self.assertEqual(enso.publish(updated, NotificationState(path), now, sender)['status'], 'suppressed')
+        sender.assert_called_once()
