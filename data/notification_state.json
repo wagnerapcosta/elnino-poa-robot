@@ -20,13 +20,13 @@
     },
     "general": {
       "active": true,
-      "last_sent": "2026-11-25T16:29:42.792032-03:00",
+      "last_sent": "2026-11-26T16:12:28.429250-03:00",
       "signature": {
-        "level": "amarelo",
+        "level": "verde",
         "metrics": {
-          "gust": 52.9,
-          "p24": 2.7,
-          "p72": 4.300000000000001
+          "gust": 49.3,
+          "p24": 17.0,
+          "p72": 22.1
         },
         "rain_only": false
       }
